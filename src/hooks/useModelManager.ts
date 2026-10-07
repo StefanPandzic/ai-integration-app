@@ -20,6 +20,8 @@ export const useModelManager = ({
   dispatch,
 }: UseModelManagerProps) => {
   const backendServiceRef = useRef(BackendService());
+  const selectedModelRef = useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
 
   // Load available AI models on mount
   // Note: Model preference is restored automatically by Redux Persist
@@ -30,6 +32,17 @@ export const useModelManager = ({
         const models = await backendServiceRef.current.getAvailableModels();
         dispatch(setAvailableModels(models));
         logger.info(`✅ Received ${models.length} models`);
+
+        // A persisted model may have been removed from the backend list
+        const stillAvailable = models.some(
+          (m) => m.name === selectedModelRef.current,
+        );
+        if (!stillAvailable && models.length > 0) {
+          logger.warn(
+            `⚠️ Model "${selectedModelRef.current}" is no longer available, using ${models[0].name}`,
+          );
+          dispatch(setSelectedModel(models[0].name));
+        }
       } catch (error) {
         logger.error('❌ Failed to load models:', error);
       }

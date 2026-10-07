@@ -3,7 +3,7 @@ import type { LoggerConfig, LogLevel, FeatureName } from '../types';
 const isDev = import.meta.env.DEV;
 
 export const logConfig: LoggerConfig = {
-  enabledFeatures: ['speech', 'ai', 'production', 'app', 'rag', 'ollama'],
+  enabledFeatures: ['speech', 'ai', 'production', 'calls', 'app', 'rag', 'ollama'],
   logLevel: isDev ? 'debug' : 'info',
   enableVerboseOllama: isDev,
 };

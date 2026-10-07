@@ -24,6 +24,7 @@ function formatFeaturePrefix(feature: FeatureName): string {
     speech: '[SPEECH]',
     ai: '[AI]',
     production: '[PRODUCTION]',
+    calls: '[CALLS]',
     app: '[APP]',
     rag: '[RAG]',
     ollama: '[OLLAMA]',

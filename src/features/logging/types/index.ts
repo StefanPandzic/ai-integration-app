@@ -4,6 +4,7 @@ export type FeatureName =
   | 'speech'
   | 'ai'
   | 'production'
+  | 'calls'
   | 'app'
   | 'rag'
   | 'ollama';

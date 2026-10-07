@@ -30,7 +30,7 @@ const initialState: AppState = {
   colorMode: 'light',
 
   // AI Processing State
-  selectedModel: 'llama3',
+  selectedModel: 'deepseek-r1',
   availableModels: [],
   processingSteps: [],
   currentThinking: null,

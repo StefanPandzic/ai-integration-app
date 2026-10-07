@@ -27,6 +27,7 @@ import {
   ThinkingPanel,
   ConversationHistory,
 } from './features/ai';
+import { CallsPanel, useCalls } from './features/calls';
 import { TranscriptInput } from './components';
 import { ProductionLinePanel } from './features/production/components/ProductionLinePanel';
 import { useModelManager } from './hooks/useModelManager';
@@ -133,6 +134,12 @@ function App() {
   const { handleProgress, resetProgress } = useProgressTracker({
     dispatch,
   });
+
+  // ============================================================================
+  // HOOKS: Coaching Call Pipeline
+  // ============================================================================
+
+  const callsPipeline = useCalls();
 
   // ============================================================================
   // HOOKS: Command Interpreter (AI Command Execution)
@@ -254,6 +261,19 @@ function App() {
           <Box w='100%' m={6}>
             <ThinkingPanel thinking={currentThinking} isActive={isThinking} />
           </Box>
+
+          <CallsPanel
+            calls={callsPipeline.calls}
+            demoInfo={callsPipeline.demoInfo}
+            clients={callsPipeline.clients}
+            selectedCallId={callsPipeline.selectedCallId}
+            selectedCall={callsPipeline.selectedCall}
+            isSimulating={callsPipeline.isSimulating}
+            error={callsPipeline.error}
+            onSimulate={callsPipeline.simulateCall}
+            onSelectCall={callsPipeline.selectCall}
+            onAssign={callsPipeline.assignCall}
+          />
 
           <Grid
             templateColumns={{ base: '1fr', lg: '1fr 1fr' }}

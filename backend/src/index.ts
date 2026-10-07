@@ -8,7 +8,13 @@ import {
 } from './services/queryService';
 import { batchEmbeddings } from './services/embedClient';
 import { getOllamaConfig, setModelConfig } from './config/ollamaConfig';
-import { getAvailableModels } from './config/aiModels';
+import { getAvailableModels, LLM_SETTINGS } from './config/aiModels';
+import { checkDatabase, isDatabaseConfigured } from './db';
+import { getProvider } from './services/llm';
+import { callsRouter } from './routes/calls';
+import { RawBodyRequest, webhooksRouter } from './routes/webhooks';
+import { JOB_HANDLERS } from './services/pipeline/jobHandlers';
+import { createWorker } from './services/queue/worker';
 import { QueryRequest, EmbedRequest, EmbedResponse } from './types';
 
 dotenv.config();
@@ -24,11 +30,39 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+    // Keep the raw bytes for webhook signature verification
+    verify: (req, _res, buf) => {
+      (req as RawBodyRequest).rawBody = buf;
+    },
+  }),
+);
+
+// Call pipeline
+app.use('/webhooks', webhooksRouter);
+app.use('/api', callsRouter);
 
 // Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (_req: Request, res: Response) => {
+  const database = isDatabaseConfigured()
+    ? (await checkDatabase())
+      ? 'ok'
+      : 'unreachable'
+    : 'not_configured';
+
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database,
+    llm: {
+      primary: `${LLM_SETTINGS.primary}/${getProvider(LLM_SETTINGS.primary).model()}`,
+      fallback: LLM_SETTINGS.fallback
+        ? `${LLM_SETTINGS.fallback}/${getProvider(LLM_SETTINGS.fallback).model()}`
+        : null,
+    },
+  });
 });
 
 // SSE endpoint for AI queries with streaming
@@ -179,6 +213,12 @@ const startServer = async () => {
         `🤖 Ollama API: ${process.env.OLLAMA_API_URL || 'http://localhost:11434'}`,
       );
       console.log('✅ Ready to accept requests');
+
+      if (isDatabaseConfigured()) {
+        createWorker(JOB_HANDLERS).start();
+      } else {
+        console.warn('⚠️ DATABASE_URL not set: call pipeline worker disabled');
+      }
     });
   } catch (error) {
     console.error('❌ Failed to initialize backend:', error);
