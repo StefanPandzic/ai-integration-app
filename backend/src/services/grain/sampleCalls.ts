@@ -2,11 +2,19 @@
  * Sample Calls (mock Grain mode)
  *
  * Participants line up with the demo directory in src/db/seed.ts.
- * Each sample exercises one matching path; `expectedOwners` lists the
- * people who commit to something on the call (for later evals).
+ * Each sample exercises one matching path. `expectedActionItems` is the
+ * eval answer key (npm run eval): the commitments made on the call, each
+ * matched by keyword groups (every group must appear in the task; "a|b"
+ * means either). Optional items may or may not be extracted.
  */
 
 import { Participant } from '../../types/pipeline';
+
+export interface ExpectedActionItem {
+  owner: string;
+  keywords: string[];
+  optional?: boolean;
+}
 
 export interface SampleCall {
   id: string;
@@ -16,7 +24,7 @@ export interface SampleCall {
   durationSeconds: number;
   participants: Participant[];
   transcript: string;
-  expectedOwners: string[];
+  expectedActionItems: ExpectedActionItem[];
 }
 
 export const SAMPLE_CALLS: SampleCall[] = [
@@ -37,7 +45,12 @@ Dana Lee: Good. I'll send you the outreach tracker template today so you can log
 Marcus Webb: Thanks. Honestly I'm worried the Q3 pipeline won't be enough to hit the target.
 Dana Lee: Let's look at the numbers next week. Bring your current pipeline sheet to our next session.
 Marcus Webb: Will do. I'm feeling better about the routine, just not the numbers.`,
-    expectedOwners: ['Marcus Webb', 'Dana Lee'],
+    expectedActionItems: [
+      { owner: 'Marcus Webb', keywords: ['ticket'] },
+      { owner: 'Dana Lee', keywords: ['tracker|template'] },
+      { owner: 'Marcus Webb', keywords: ['pipeline'] },
+      { owner: 'Dana Lee', keywords: ['numbers'], optional: true },
+    ],
   },
   {
     id: 'pricing-anxiety',
@@ -57,7 +70,13 @@ Jordan Kim: That's fair. I'll draft the announcement email and send it to you by
 Sam Ortiz: I'll review it within a day of getting it. I'll also share the value-framing worksheet.
 Jordan Kim: I've been sleeping badly over this, to be honest. Talking it through helps.
 Sam Ortiz: That's normal before a hard conversation. We'll role-play the call next session.`,
-    expectedOwners: ['Jordan Kim', 'Sam Ortiz'],
+    expectedActionItems: [
+      { owner: 'Jordan Kim', keywords: ['announcement|email'] },
+      { owner: 'Sam Ortiz', keywords: ['review'] },
+      { owner: 'Sam Ortiz', keywords: ['worksheet'] },
+      { owner: 'Sam Ortiz', keywords: ['role'], optional: true },
+      { owner: 'Jordan Kim', keywords: ['role'], optional: true },
+    ],
   },
   {
     id: 'hiring-plan',
@@ -78,7 +97,10 @@ Dana Lee: Then start there. Can you have the senior JD drafted before our next c
 Priya Shah: Yes, I'll have it done by next Tuesday.
 Dana Lee: I'll introduce you to a recruiter I trust. Expect an email from me tomorrow.
 Priya Shah: That would be great. I'm excited, this team has been stretched thin for a year.`,
-    expectedOwners: ['Priya Shah', 'Dana Lee'],
+    expectedActionItems: [
+      { owner: 'Priya Shah', keywords: ['jd|job description'] },
+      { owner: 'Dana Lee', keywords: ['recruiter'] },
+    ],
   },
   {
     id: 'missed-goals',
@@ -98,7 +120,12 @@ Marcus Webb: Frankly I'm wondering if it's worth the time right now. Everything 
 Dana Lee: That's important to hear. Let's cut the plan down to one priority for the next two weeks.
 Marcus Webb: Okay. Pipeline review, then. I'll block Thursday afternoons for it.
 Dana Lee: I'll check in with you on Friday by message to see how the first block went.`,
-    expectedOwners: ['Marcus Webb', 'Dana Lee'],
+    expectedActionItems: [
+      { owner: 'Marcus Webb', keywords: ['thursday|block'] },
+      { owner: 'Dana Lee', keywords: ['check'] },
+      { owner: 'Marcus Webb', keywords: ['priority'], optional: true },
+      { owner: 'Dana Lee', keywords: ['priority'], optional: true },
+    ],
   },
   {
     id: 'unknown-intro',
@@ -115,7 +142,10 @@ Sam Ortiz: Congratulations. What's the hardest part so far?
 Alex Rivera: Running a forecast meeting without it turning into a status report.
 Sam Ortiz: That's very common. I'll send you our program overview and a sample agenda.
 Alex Rivera: Great, I'll review it with my VP and get back to you next week.`,
-    expectedOwners: ['Sam Ortiz', 'Alex Rivera'],
+    expectedActionItems: [
+      { owner: 'Sam Ortiz', keywords: ['overview|agenda'] },
+      { owner: 'Alex Rivera', keywords: ['vp|review|get back'] },
+    ],
   },
 ];
 

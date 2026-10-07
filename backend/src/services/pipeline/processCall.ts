@@ -1,9 +1,12 @@
 /**
  * process_call Job
  *
- * match → summarize → post to Slack. Each step's result is stored before
- * the next runs, so a retried job skips finished steps; a stored Slack
- * `ts` means the message is never posted twice.
+ * match → summarize → post to Slack → archive to Drive. Each step's
+ * result is stored before the next runs and each step is skipped when its
+ * result exists, so a retried job resumes where it stopped: a stored
+ * Slack `ts` means the message is never posted twice, a stored Drive file
+ * ID means the document is never saved twice. A call that can't be
+ * matched goes to the review queue and ops are alerted.
  */
 
 import {
@@ -11,19 +14,24 @@ import {
   getSummary,
   markNeedsReview,
   saveSummary,
+  setCallDrive,
   setCallMatch,
   setSlackMessageTs,
 } from '../../db/callsRepo';
 import { getClient, getCoach } from '../../db/directoryRepo';
+import { createLogger } from '../../lib/logger';
 import { CallRow, ClientRow, CoachRow } from '../../types/pipeline';
+import { notifyNeedsReview } from '../alerts/opsAlerts';
+import { getDriveConnector } from '../drive/driveConnector';
+import { callDocumentPath, renderCallSummaryHtml } from '../drive/renderCall';
 import { NonRetryableError } from '../queue/errors';
 import { postMessage } from '../slack/slackClient';
 import { buildSummaryMessage } from '../slack/summaryBlocks';
+import { maybeInjectFault } from './demoFaults';
 import { matchCall } from './matching';
 import { summarizeCall } from './summarizeCall';
 
-const log = (callId: string, message: string) =>
-  console.log(`📞 [call ${callId.slice(0, 8)}] ${message}`);
+const log = createLogger('pipeline');
 
 const resolveMatch = async (
   call: CallRow,
@@ -39,15 +47,13 @@ const resolveMatch = async (
   const match = await matchCall(call);
   if (!match.matched) {
     await markNeedsReview(call.id, match.reason);
-    log(call.id, `needs review: ${match.reason}`);
+    log.info(`📞 needs review: ${match.reason}`);
+    await notifyNeedsReview(call, match.reason);
     return null;
   }
 
   await setCallMatch(call.id, match.coach.id, match.client.id);
-  log(
-    call.id,
-    `matched by ${match.method} → ${match.client.name} / ${match.coach.name}`,
-  );
+  log.info(`📞 matched by ${match.method} → ${match.client.name} / ${match.coach.name}`);
   return { coach: match.coach, client: match.client };
 };
 
@@ -56,32 +62,43 @@ export const processCall = async (callId: string): Promise<void> => {
   if (!call) {
     throw new NonRetryableError(`Call ${callId} not found`);
   }
-  if (call.slack_message_ts) {
-    log(call.id, 'already posted, skipping');
+  if (call.slack_message_ts && call.drive_file_id) {
+    log.info('📞 already posted and archived, skipping');
     return;
   }
 
   const match = await resolveMatch(call);
   if (!match) return;
+  const { coach, client } = match;
+  maybeInjectFault();
 
   let stored = await getSummary(call.id);
   if (!stored) {
-    const result = await summarizeCall(call, match.coach, match.client);
+    const result = await summarizeCall(call, coach, client);
     await saveSummary(call.id, result.data, result.provider, result.model);
-    log(call.id, `summarized with ${result.provider}/${result.model}`);
+    log.info(`📞 summarized with ${result.provider}/${result.model}`);
     stored = await getSummary(call.id);
   }
   if (!stored) {
     throw new Error(`Summary for call ${call.id} was not stored`);
   }
 
-  const message = buildSummaryMessage(
-    call,
-    stored.summary,
-    match.client,
-    match.coach,
-  );
-  const { ts } = await postMessage(message);
-  await setSlackMessageTs(call.id, ts);
-  log(call.id, `posted to ${message.channel} ts=${ts}`);
+  if (!call.slack_message_ts) {
+    const message = buildSummaryMessage(call, stored.summary, client, coach);
+    const { ts } = await postMessage(message);
+    await setSlackMessageTs(call.id, ts);
+    log.info(`📞 posted to ${message.channel}`, { ts });
+  }
+
+  if (!call.drive_file_id) {
+    const { folderPath, title } = callDocumentPath(call, client);
+    const saved = await getDriveConnector().saveDocument(
+      folderPath,
+      title,
+      renderCallSummaryHtml(call, stored.summary, client, coach),
+      `call:${call.id}`,
+    );
+    await setCallDrive(call.id, saved.fileId, saved.url);
+    log.info(`📞 archived to Drive ${folderPath}`);
+  }
 };

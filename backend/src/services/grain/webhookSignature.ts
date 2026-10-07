@@ -14,7 +14,7 @@ import { getGrainMode } from './grainConnector';
 
 export const SIGNATURE_HEADER = 'x-grain-signature';
 
-export const signPayload = (rawBody: Buffer | string, secret: string): string =>
+const signPayload = (rawBody: Buffer | string, secret: string): string =>
   crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
 
 export type SignatureCheck =

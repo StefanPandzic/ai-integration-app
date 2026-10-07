@@ -1,7 +1,8 @@
 /**
  * Reset Calls
  *
- * Deletes all calls, call summaries and jobs so the pipeline starts empty.
+ * Deletes all calls, call summaries, jobs and mock Grain recordings so the
+ * pipeline starts empty.
  * Coaches, clients and reports are kept.
  * Usage: npm run db:reset-calls
  */
@@ -16,10 +17,18 @@ const reset = async (): Promise<void> => {
     const jobs = await client.query('delete from jobs');
     // call_summaries cascade from calls
     const calls = await client.query('delete from calls');
-    return { calls: calls.rowCount ?? 0, jobs: jobs.rowCount ?? 0 };
+    // Otherwise the next reconcile would re-ingest the mock recordings
+    const recordings = await client.query('delete from mock_grain_recordings');
+    return {
+      calls: calls.rowCount ?? 0,
+      jobs: jobs.rowCount ?? 0,
+      recordings: recordings.rowCount ?? 0,
+    };
   });
 
-  console.log(`✅ Deleted ${counts.calls} calls and ${counts.jobs} jobs`);
+  console.log(
+    `✅ Deleted ${counts.calls} calls, ${counts.jobs} jobs and ${counts.recordings} mock Grain recordings`,
+  );
 };
 
 reset()

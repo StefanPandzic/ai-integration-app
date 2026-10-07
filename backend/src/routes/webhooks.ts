@@ -7,11 +7,14 @@
 
 import { Request, Response, Router } from 'express';
 import { z } from 'zod';
+import { createLogger } from '../lib/logger';
 import { acceptGrainRecording } from '../services/pipeline/ingest';
 import {
   SIGNATURE_HEADER,
   verifyGrainSignature,
 } from '../services/grain/webhookSignature';
+
+const log = createLogger('webhooks');
 
 /** Set by the express.json `verify` hook in index.ts */
 export interface RawBodyRequest extends Request {
@@ -32,7 +35,7 @@ webhooksRouter.post('/grain', async (req: RawBodyRequest, res: Response) => {
     req.header(SIGNATURE_HEADER),
   );
   if (!signature.valid) {
-    console.warn(`🚫 Grain webhook rejected: ${signature.reason}`);
+    log.warn(`🚫 Grain webhook rejected: ${signature.reason}`);
     res.status(401).json({ error: 'Invalid signature' });
     return;
   }
@@ -48,13 +51,17 @@ webhooksRouter.post('/grain', async (req: RawBodyRequest, res: Response) => {
       parsed.data.data.id,
       req.body,
     );
-    console.log(
-      `📨 Grain webhook ${parsed.data.data.id}${duplicate ? ' (duplicate, ignored)' : ''}${signature.skipped ? ' [unsigned, mock mode]' : ''}`,
+    log.info(
+      `📨 Grain webhook${duplicate ? ' (duplicate, ignored)' : ''}${signature.skipped ? ' [unsigned, mock mode]' : ''}`,
+      { recordingId: parsed.data.data.id, jobId },
     );
     res.status(200).json({ ok: true, jobId, duplicate });
   } catch (error) {
     // 5xx makes Grain retry delivery; the idempotency key absorbs repeats
-    console.error('❌ Failed to enqueue Grain webhook:', error);
+    log.error('❌ Failed to enqueue Grain webhook', {
+      recordingId: parsed.data.data.id,
+      error,
+    });
     res.status(500).json({ error: 'Failed to enqueue' });
   }
 });

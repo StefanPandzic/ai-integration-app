@@ -5,6 +5,7 @@ import {
   HamburgerIcon,
   MoonIcon,
   PhoneIcon,
+  RepeatClockIcon,
   StarIcon,
   SunIcon,
   WarningTwoIcon,
@@ -26,17 +27,19 @@ import {
 import type { ReactElement, ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppColors } from '../../../constants/colors';
-import type { DemoInfo } from '../../calls';
+import type { DemoInfo, DemoSwitch } from '../../calls';
 import { SimulateCallMenu } from './SimulateCallMenu';
 import { SimulateWeekMenu } from './SimulateWeekMenu';
 
 interface AppShellProps {
   reviewCount: number;
+  deadJobCount: number;
   demoInfo: DemoInfo | null;
   isSimulating: boolean;
   isSimulatingWeek: boolean;
   colorMode: 'light' | 'dark';
   onSimulate: (sampleId: string | null) => void;
+  onToggleDemoSwitch: (name: DemoSwitch, enabled: boolean) => void;
   onSimulateWeek: (count: number | null) => void;
   onToggleColorMode: () => void;
   children: ReactNode;
@@ -47,6 +50,7 @@ interface NavItem {
   label: string;
   icon: ReactElement;
   badge?: number;
+  badgeScheme?: string;
   soon?: boolean;
 }
 
@@ -77,7 +81,7 @@ const NavLinks = ({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
                 {item.label}
               </Text>
               {item.badge ? (
-                <Badge colorScheme='orange' borderRadius='full'>
+                <Badge colorScheme={item.badgeScheme ?? 'orange'} borderRadius='full'>
                   {item.badge}
                 </Badge>
               ) : null}
@@ -123,11 +127,13 @@ const Brand = () => {
  */
 export const AppShell = ({
   reviewCount,
+  deadJobCount,
   demoInfo,
   isSimulating,
   isSimulatingWeek,
   colorMode,
   onSimulate,
+  onToggleDemoSwitch,
   onSimulateWeek,
   onToggleColorMode,
   children,
@@ -142,6 +148,13 @@ export const AppShell = ({
     { to: '/coaches', label: 'Coaches', icon: <StarIcon /> },
     { to: '/reports', label: 'Reports', icon: <CalendarIcon /> },
     { to: '/outbox', label: 'Outbox', icon: <EmailIcon /> },
+    {
+      to: '/pipeline',
+      label: 'Pipeline',
+      icon: <RepeatClockIcon />,
+      badge: deadJobCount,
+      badgeScheme: 'red',
+    },
   ];
 
   return (
@@ -211,6 +224,10 @@ export const AppShell = ({
                     {service}: {mode}
                   </Badge>
                 ))}
+                {demoInfo.dropNextWebhook && (
+                  <Badge colorScheme='red'>Next webhook will drop</Badge>
+                )}
+                {demoInfo.failNextCall && <Badge colorScheme='red'>Next call will fail</Badge>}
               </HStack>
             )}
           </HStack>
@@ -228,7 +245,10 @@ export const AppShell = ({
                 <SimulateCallMenu
                   samples={demoInfo.samples}
                   isSimulating={isSimulating}
+                  dropNextWebhook={demoInfo.dropNextWebhook}
+                  failNextCall={demoInfo.failNextCall}
                   onSimulate={onSimulate}
+                  onToggleSwitch={onToggleDemoSwitch}
                 />
               </>
             )}

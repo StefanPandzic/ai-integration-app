@@ -1,7 +1,7 @@
 {
   "name": "speech-to-text-backend",
   "version": "1.0.0",
-  "description": "Backend API for speech-to-text app with Ollama integration",
+  "description": "Coaching call intelligence backend: Grain → LLM summaries → Slack/Drive, weekly reports",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -12,7 +12,8 @@
     "llm:check": "ts-node-dev --transpile-only src/scripts/llmCheck.ts",
     "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
     "db:reset-calls": "ts-node-dev --transpile-only src/db/resetCalls.ts",
-    "reports:check": "ts-node-dev --transpile-only src/scripts/reportsCheck.ts"
+    "reports:check": "ts-node-dev --transpile-only src/scripts/reportsCheck.ts",
+    "eval": "ts-node-dev --transpile-only src/scripts/eval.ts"
   },
   "keywords": [
     "ollama",

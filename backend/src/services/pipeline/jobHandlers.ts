@@ -2,6 +2,7 @@
  * Job Handlers: JobType → handler
  */
 
+import { createLogger, withLogContext } from '../../lib/logger';
 import { JobRow, JobType } from '../../types/pipeline';
 import { getGrainConnector } from '../grain/grainConnector';
 import { NonRetryableError } from '../queue/errors';
@@ -13,6 +14,9 @@ import {
 } from '../reports/runWeeklyReports';
 import { ingestCall } from './ingest';
 import { processCall } from './processCall';
+import { handleReconcile } from './reconcile';
+
+const log = createLogger('pipeline');
 
 const requireString = (job: JobRow, key: string): string => {
   const value = job.payload[key];
@@ -28,8 +32,10 @@ export const JOB_HANDLERS: Record<JobType, JobHandler> = {
       requireString(job, 'recordingId'),
     );
     const { callId, duplicate } = await ingestCall(recording);
-    console.log(
-      `📥 Recording ${recording.externalId} → call ${callId.slice(0, 8)}${duplicate ? ' (already stored)' : ''}`,
+    withLogContext({ callId }, () =>
+      log.info(`📥 Recording stored${duplicate ? ' (already stored)' : ''}`, {
+        recordingId: recording.externalId,
+      }),
     );
   },
 
@@ -38,4 +44,6 @@ export const JOB_HANDLERS: Record<JobType, JobHandler> = {
   weekly_reports: handleWeeklyReports,
   coach_report: handleCoachReport,
   manager_report: handleManagerReport,
+
+  reconcile_grain: handleReconcile,
 };

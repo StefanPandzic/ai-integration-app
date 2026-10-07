@@ -34,6 +34,8 @@ export interface LLMSettings {
   claudeModel: string;
   claudeEffort: ClaudeEffort;
   maxTokens: number;
+  /** Client-side cap below the account's Claude rate limit */
+  claudeRequestsPerMinute: number;
 }
 
 export const LLM_SETTINGS: LLMSettings = {
@@ -45,4 +47,5 @@ export const LLM_SETTINGS: LLMSettings = {
   claudeModel: 'claude-opus-5-5',
   claudeEffort: 'medium',
   maxTokens: 16000,
+  claudeRequestsPerMinute: 50,
 };

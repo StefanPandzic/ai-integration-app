@@ -48,6 +48,8 @@ export interface CallRow {
   status: CallStatus;
   review_reason: string | null;
   slack_message_ts: string | null;
+  drive_file_id: string | null;
+  drive_url: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -73,7 +75,8 @@ export type JobType =
   | 'process_call'
   | 'weekly_reports'
   | 'coach_report'
-  | 'manager_report';
+  | 'manager_report'
+  | 'reconcile_grain';
 export type JobStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'dead';
 
 export interface JobRow {
@@ -88,6 +91,7 @@ export interface JobRow {
   run_at: Date;
   last_error: string | null;
   created_at: Date;
+  updated_at: Date;
 }
 
 export type ReportType = 'coach' | 'manager';

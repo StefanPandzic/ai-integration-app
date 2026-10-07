@@ -10,6 +10,7 @@ import {
   useCallDetail,
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
+import { useRetryJob } from '../features/pipeline';
 
 export const CallDetailPage = () => {
   const { callId } = useParams();
@@ -18,6 +19,7 @@ export const CallDetailPage = () => {
   const { data, isLoading, error } = useCallDetail(callId);
   const { data: clients = [] } = useListClientsQuery();
   const { assignCall, assigningCallId } = useAssignCall();
+  const { retryJob, retryingJobId } = useRetryJob();
 
   return (
     <>
@@ -44,10 +46,12 @@ export const CallDetailPage = () => {
             detail={data}
             clients={clients}
             isAssigning={assigningCallId === data.call.id}
+            isRetrying={retryingJobId !== null && retryingJobId === data.job?.id}
             onAssign={(clientId) => assignCall(data.call.id, clientId)}
+            onRetry={(jobId) => retryJob(jobId, data.call.id)}
             onOpenClient={(id) => navigate(`/clients/${id}`)}
             onOpenCoach={(id) => navigate(`/coaches/${id}`)}
-            onOpenOutboxItem={(id) => navigate(`/outbox?tab=slack&item=${id}`)}
+            onOpenOutboxItem={(service, id) => navigate(`/outbox?tab=${service}&item=${id}`)}
           />
         )}
       </QueryState>

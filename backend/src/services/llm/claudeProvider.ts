@@ -4,12 +4,14 @@
  * Uses structured outputs (output_config.format) so the response is
  * constrained to the zod schema by the API, then re-validates with zod.
  * Server-side refusal fallbacks are enabled ('default' routing).
+ * Requests are rate limited client-side (LLM_SETTINGS.claudeRequestsPerMinute).
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { LLM_SETTINGS } from '../../config/aiModels';
+import { acquire } from '../rateLimit';
 import {
   LLMOutputError,
   LLMProvider,
@@ -18,6 +20,8 @@ import {
   StructuredResult,
   formatZodIssues,
 } from './types';
+
+const CLAUDE_BURST = 5;
 
 export const createClaudeProvider = (): LLMProvider => {
   // Resolves credentials from ANTHROPIC_API_KEY (or an `ant auth login` profile)
@@ -30,6 +34,10 @@ export const createClaudeProvider = (): LLMProvider => {
   const generateStructured = async <S extends z.ZodType>(
     request: StructuredRequest<S>,
   ): Promise<StructuredResult<z.infer<S>>> => {
+    await acquire('claude', {
+      perSecond: LLM_SETTINGS.claudeRequestsPerMinute / 60,
+      burst: CLAUDE_BURST,
+    });
     const response = await getClient().beta.messages.parse({
       model: LLM_SETTINGS.claudeModel,
       max_tokens: LLM_SETTINGS.maxTokens,

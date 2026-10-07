@@ -1,22 +1,33 @@
 /**
  * Demo API (mock Grain mode)
  *
- * GET  /api/demo/samples           mock Grain sample calls + integration modes
- * POST /api/demo/simulate-call     run a sample through the webhook path
- * POST /api/demo/simulate-week     { count? } samples backdated across last
- *                                  week, through the webhook path
+ * GET  /api/demo/samples              mock Grain sample calls, integration
+ *                                     modes and the demo switches
+ * POST /api/demo/simulate-call        record a sample in mock Grain and send
+ *                                     its webhook (unless dropped)
+ * POST /api/demo/simulate-week        { count? } samples backdated across
+ *                                     last week, same path
+ * POST /api/demo/drop-next-webhook    { enabled } the next simulated call's
+ *                                     webhook is lost (reconcile recovers it)
+ * POST /api/demo/fail-next-call       { enabled } the next process_call
+ *                                     fails permanently once (Retry demo)
  */
 
-import { Router } from 'express';
+import { Response, Router } from 'express';
 import { z } from 'zod';
 import { getDriveMode, getSlackMode } from '../config/integrations';
 import { getPeriod, localTimestamps } from '../db/reportsRepo';
+import { getGrainMode } from '../services/grain/grainConnector';
 import {
-  buildMockRecordingId,
-  getGrainMode,
-} from '../services/grain/grainConnector';
+  isDropNextWebhookArmed,
+  setDropNextWebhook,
+  simulateRecording,
+} from '../services/grain/mockGrain';
 import { SAMPLE_CALLS, getSampleCall } from '../services/grain/sampleCalls';
-import { acceptGrainRecording } from '../services/pipeline/ingest';
+import {
+  isFailNextCallArmed,
+  setFailNextCall,
+} from '../services/pipeline/demoFaults';
 import { handle } from './helpers';
 
 const MAX_SIMULATED_CALLS = 100;
@@ -37,13 +48,24 @@ const simulateWeekSchema = z.object({
     .default(SAMPLE_CALLS.length),
 });
 
+const switchSchema = z.object({ enabled: z.boolean() });
+
 export const demoRouter = Router();
+
+/** Simulation needs the mock Grain connector; answers 409 otherwise */
+const requireMockGrain = (res: Response): boolean => {
+  if (getGrainMode() === 'mock') return true;
+  res.status(409).json({ error: 'Simulation requires GRAIN_MODE=mock' });
+  return false;
+};
 
 demoRouter.get('/demo/samples', (_req, res) => {
   res.json({
     grainMode: getGrainMode(),
     slackMode: getSlackMode(),
     driveMode: getDriveMode(),
+    dropNextWebhook: isDropNextWebhookArmed(),
+    failNextCall: isFailNextCallArmed(),
     samples: SAMPLE_CALLS.map(({ id, title, scenario }) => ({
       id,
       title,
@@ -55,10 +77,7 @@ demoRouter.get('/demo/samples', (_req, res) => {
 demoRouter.post(
   '/demo/simulate-call',
   handle(async (req, res) => {
-    if (getGrainMode() !== 'mock') {
-      res.status(409).json({ error: 'Simulation requires GRAIN_MODE=mock' });
-      return;
-    }
+    if (!requireMockGrain(res)) return;
 
     const parsed = simulateSchema.safeParse(req.body ?? {});
     const sample = parsed.success && parsed.data.sampleId
@@ -69,22 +88,14 @@ demoRouter.post(
       return;
     }
 
-    const recordingId = buildMockRecordingId(sample.id);
-    const result = await acceptGrainRecording(recordingId, {
-      simulated: true,
-      sampleId: sample.id,
-    });
-    res.status(202).json({ recordingId, ...result });
+    res.status(202).json(await simulateRecording(sample.id));
   }),
 );
 
 demoRouter.post(
   '/demo/simulate-week',
   handle(async (req, res) => {
-    if (getGrainMode() !== 'mock') {
-      res.status(409).json({ error: 'Simulation requires GRAIN_MODE=mock' });
-      return;
-    }
+    if (!requireMockGrain(res)) return;
 
     const parsed = simulateWeekSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -103,11 +114,36 @@ demoRouter.post(
 
     for (const [i, startedAt] of startTimes.entries()) {
       const sample = SAMPLE_CALLS[i % SAMPLE_CALLS.length];
-      await acceptGrainRecording(
-        buildMockRecordingId(sample.id, new Date(startedAt)),
-        { simulated: true, sampleId: sample.id, startedAt },
-      );
+      await simulateRecording(sample.id, new Date(startedAt));
     }
     res.status(202).json({ count, ...period });
+  }),
+);
+
+demoRouter.post(
+  '/demo/drop-next-webhook',
+  handle(async (req, res) => {
+    if (!requireMockGrain(res)) return;
+    const parsed = switchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'enabled must be a boolean' });
+      return;
+    }
+    setDropNextWebhook(parsed.data.enabled);
+    res.json({ dropNextWebhook: isDropNextWebhookArmed() });
+  }),
+);
+
+demoRouter.post(
+  '/demo/fail-next-call',
+  handle(async (req, res) => {
+    if (!requireMockGrain(res)) return;
+    const parsed = switchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'enabled must be a boolean' });
+      return;
+    }
+    setFailNextCall(parsed.data.enabled);
+    res.json({ failNextCall: isFailNextCallArmed() });
   }),
 );

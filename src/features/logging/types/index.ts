@@ -6,6 +6,7 @@ export type FeatureName =
   | 'coaches'
   | 'reports'
   | 'outbox'
+  | 'pipeline'
   | 'app'
   | 'api';
 

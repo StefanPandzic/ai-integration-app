@@ -10,6 +10,9 @@
 
 import fs from 'fs';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('db');
 
 let pool: Pool | null = null;
 
@@ -29,7 +32,7 @@ const buildSslConfig = (connectionString: string) => {
 export const isDatabaseConfigured = (): boolean =>
   Boolean(process.env.DATABASE_URL);
 
-export const getPool = (): Pool => {
+const getPool = (): Pool => {
   if (pool) return pool;
 
   const connectionString = process.env.DATABASE_URL;
@@ -43,7 +46,7 @@ export const getPool = (): Pool => {
     max: 10,
   });
   pool.on('error', (error) => {
-    console.error('❌ Postgres pool error:', error);
+    log.error('❌ Postgres pool error', { error });
   });
   return pool;
 };

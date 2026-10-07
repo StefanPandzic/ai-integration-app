@@ -1,4 +1,5 @@
 import { Box, HStack, Link, Text, VStack } from '@chakra-ui/react';
+import { useEffect, useRef } from 'react';
 import { EmptyState } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
 import type { AssignableClient, CallListItem } from '../types';
@@ -9,6 +10,8 @@ interface ReviewQueueListProps {
   calls: CallListItem[];
   clients: AssignableClient[];
   assigningCallId: string | null;
+  /** Scrolled into view and highlighted (ops alert link: /review?call=) */
+  highlightCallId?: string | null;
   onAssign: (callId: string, clientId: string) => void;
   onOpen: (callId: string) => void;
 }
@@ -18,10 +21,19 @@ export const ReviewQueueList = ({
   calls,
   clients,
   assigningCallId,
+  highlightCallId = null,
   onAssign,
   onOpen,
 }: ReviewQueueListProps) => {
   const colors = useAppColors();
+  const highlightRef = useRef<HTMLDivElement>(null);
+  const hasHighlight = calls.some((call) => call.id === highlightCallId);
+
+  useEffect(() => {
+    if (hasHighlight) {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [hasHighlight]);
 
   if (calls.length === 0) {
     return (
@@ -37,10 +49,14 @@ export const ReviewQueueList = ({
       {calls.map((call, index) => (
         <Box
           key={call.id}
+          ref={call.id === highlightCallId ? highlightRef : undefined}
           px={5}
           py={4}
           borderTopWidth={index === 0 ? 0 : '1px'}
           borderColor={colors.border}
+          bg={call.id === highlightCallId ? colors.bgActive : undefined}
+          borderLeftWidth={call.id === highlightCallId ? '3px' : 0}
+          borderLeftColor={colors.borderAccent}
         >
           <HStack justify='space-between' align='flex-start' flexWrap='wrap' gap={4}>
             <Box minW={0} flex='1 1 280px'>

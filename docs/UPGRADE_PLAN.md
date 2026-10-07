@@ -61,9 +61,13 @@ Detailed plan: [PHASE3_PLAN.md](PHASE3_PLAN.md).
 - **Coach report** (map-reduce over call summaries): `per_client[{progress, next_focus, watch_outs}]`, judged against last week's focus. `coach_rating` uses a fixed rubric with evidence call IDs. Also `improvements[]` and `attention[]`.
 - **Manager report:** built from the coach reports. Covers `trends`, sentiment (counted in SQL, explained by the LLM), `client_concerns`, `content_ideas`, `at_risk_clients` and `coach_highlights`.
 - Both are delivered to Slack (coach DM, manager channel) and archived to Google Drive. Both services are mocks that write to an outbox shown in the dashboard.
-- Built: jobs `weekly_reports` → `coach_report` × N → `manager_report` (gate) on the existing queue; `integration_outbox` + `/outbox` page; ops alerts for dead report jobs and partial runs (the alert helper Phase 4 extends); `simulate-week` and `reports:check`. The per-call Slack post goes through the same mock connector.
+- Built: jobs `weekly_reports` → `coach_report` × N → `manager_report` (gate) on the existing queue; `integration_outbox` + `/outbox` page; ops alerts for dead report jobs and partial runs (the alert helper Phase 4 extended); `simulate-week` and `reports:check`. The per-call Slack post goes through the same mock connector.
 
-### Phase 4: Reliability and demo (Day 3, afternoon)
+### Phase 4: Reliability and demo (done)
+Detailed plan: [PHASE4_PLAN.md](PHASE4_PLAN.md). Runbook: [SOP.md](SOP.md).
+- Built: Retry for any dead job (`POST /api/jobs/:id/retry`, a button on Call detail and Pipeline → Failures). Ops alerts for every dead job, review-queue calls and recovered recordings, each with an idempotency key. A nightly `reconcile_grain` job (with startup catch-up and a manual "Reconcile now") against mock Grain memory (`mock_grain_recordings`). Per-step resume in `processCall`, plus a Drive archive per call. Token-bucket rate limits for Claude and Slack. A structured logger with per-job context (`LOG_FORMAT=json`). `npm run eval` against an annotated answer key. A Pipeline page and an extended `/health`. Demo switches "Drop next webhook" and "Fail next call". A new README and SOP.
+
+Original scope:
 - Retries with exponential backoff and jitter and a dead-letter status (done in Phase 2). Add a "Retry" button in the UI.
 - **Ops alerts to Slack** (`SLACK_OPS_CHANNEL_ID`, delivered to the mock outbox): a dead job, a call sent to the review queue (with a link to assign it), and a partial report run. "No babysitting" means problems come to people; nobody checks a dashboard.
 - **Nightly reconcile** against the mock Grain connector. The mock gains `listRecordings(since)`, and a demo toggle "drop next webhook" shows a missed call being recovered. The existing `grain:<id>` idempotency key makes this safe.
@@ -92,10 +96,10 @@ How the scenario's requirements map to the app. Grain, Slack and Drive are mocke
 | Weekly coach report: per client, focus, progress, rating, feedback, watch-outs | Done | Phase 3 (`services/reports/coachReport.ts`) |
 | Weekly manager report: trends, sentiment, concerns, content ideas | Done | Phase 3 (`services/reports/managerReport.ts`) |
 | No manual uploading: calls arrive from Grain automatically | Done (mock webhook path); live designed | Phase 2; [INTEGRATIONS.md](INTEGRATIONS.md#grain) |
-| No babysitting: missed webhooks recovered | Planned (against mock) | Phase 4 nightly reconcile |
-| No babysitting: failures and unmatched calls reach a person | Partly done: report failures alert ops (mock outbox); call failures and review queue planned | Phase 3 `opsAlerts.ts`; Phase 4 ops alerts |
-| No moving of files: Google Drive | Done for reports (mock outbox); calls planned; live designed | Phase 3 (reports), Phase 4 (calls); [INTEGRATIONS.md](INTEGRATIONS.md#google-drive) |
-| Reliable at 50+ calls a week | Mostly done: queue, backoff, idempotency, dead-letter | Phase 4 rate limits, eval, volume test through `simulate-week` |
+| No babysitting: missed webhooks recovered | Done (against mock Grain) | Phase 4 `reconcile.ts`, nightly cron + catch-up |
+| No babysitting: failures and unmatched calls reach a person | Done: every dead job, review-queue call and partial run alerts ops (mock outbox), with a link to fix it; Retry in the UI | `opsAlerts.ts`; [SOP.md](SOP.md) |
+| No moving of files: Google Drive | Done for reports and calls (mock outbox); live designed | Phase 3 (reports), Phase 4 (calls); [INTEGRATIONS.md](INTEGRATIONS.md#google-drive) |
+| Reliable at 50+ calls a week | Done: queue, backoff, idempotency, dead-letter, rate limits, eval; volume test through `simulate-week` | Phases 2–4; `npm run eval` |
 | Runs unattended (server always on) | **Gap:** local only (cron + startup catch-up done) | Stretch: deployment |
 
 ## Top failure modes to design for (also for the sketch)

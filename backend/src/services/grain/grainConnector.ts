@@ -1,24 +1,35 @@
 /**
  * Grain Connector
  *
- * Turns a Grain recording ID into an IncomingCall.
+ * Turns a Grain recording ID into an IncomingCall, and lists recordings
+ * (the nightly reconcile).
  * - mock (default): serves SAMPLE_CALLS; recording IDs look like
- *   `mock-<sampleId>-<suffix>`
- * - live: real Grain API client (stretch goal, not implemented yet)
+ *   `mock-<sampleId>-<suffix>`. Recordings are listed from
+ *   mock_grain_recordings (see mockGrain.ts)
+ * - live: real Grain API client (not implemented; design in
+ *   docs/INTEGRATIONS.md)
  *
  * GRAIN_MODE=mock|live selects the connector.
  */
 
 import crypto from 'crypto';
+import { listMockRecordings } from '../../db/mockGrainRepo';
 import { IncomingCall } from '../../types/pipeline';
 import { NonRetryableError } from '../queue/errors';
 import { SAMPLE_CALLS, getSampleCall } from './sampleCalls';
 
 export type GrainMode = 'mock' | 'live';
 
+export interface RecordingRef {
+  id: string;
+  createdAt: Date;
+}
+
 export interface GrainConnector {
   mode: GrainMode;
   fetchRecording: (recordingId: string) => Promise<IncomingCall>;
+  /** Recordings created since `since` (Grain: list recordings, updated_after) */
+  listRecordings: (since: Date) => Promise<RecordingRef[]>;
 }
 
 export const getGrainMode = (): GrainMode =>
@@ -62,15 +73,23 @@ const createMockConnector = (): GrainConnector => ({
       rawPayload: { sampleId: sample.id },
     };
   },
+  listRecordings: async (since) =>
+    (await listMockRecordings(since)).map((r) => ({
+      id: r.recording_id,
+      createdAt: r.created_at,
+    })),
 });
+
+const notImplemented = async (): Promise<never> => {
+  throw new NonRetryableError(
+    'Live Grain connector is not implemented yet; set GRAIN_MODE=mock',
+  );
+};
 
 const createLiveConnector = (): GrainConnector => ({
   mode: 'live',
-  fetchRecording: async () => {
-    throw new NonRetryableError(
-      'Live Grain connector is not implemented yet; set GRAIN_MODE=mock',
-    );
-  },
+  fetchRecording: notImplemented,
+  listRecordings: notImplemented,
 });
 
 let connector: GrainConnector | null = null;

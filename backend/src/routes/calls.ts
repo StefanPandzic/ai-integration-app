@@ -4,6 +4,7 @@
  * GET  /api/calls?status=&clientId=&coachId=&limit=&offset=
  *                                  list calls (review queue: status=needs_review)
  * GET  /api/calls/:id              call + summary + client/coach + latest job
+ *                                  + outbox entries (Slack message, Drive doc)
  * POST /api/calls                  ingest a call from another source (API)
  * POST /api/calls/:id/assign       resolve a review-queue call
  */
@@ -75,12 +76,13 @@ callsRouter.get(
       res.status(404).json({ error: 'Call not found' });
       return;
     }
-    const [summary, client, coach, job, slackOutboxId] = await Promise.all([
+    const [summary, client, coach, job, slackOutboxId, driveOutboxId] = await Promise.all([
       getSummary(call.id),
       call.client_id ? getClient(call.client_id) : null,
       call.coach_id ? getCoach(call.coach_id) : null,
       getLatestJobForCall(call.id),
       findOutboxIdByExternalId('slack', call.slack_message_ts),
+      findOutboxIdByExternalId('drive', call.drive_file_id),
     ]);
     res.json({
       call,
@@ -88,7 +90,7 @@ callsRouter.get(
       client: client && { id: client.id, name: client.name },
       coach: coach && { id: coach.id, name: coach.name },
       job,
-      outbox: { slack: slackOutboxId },
+      outbox: { slack: slackOutboxId, drive: driveOutboxId },
     });
   }),
 );

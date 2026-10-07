@@ -8,6 +8,8 @@ import type {
   CallFilters,
   CallListItem,
   DemoInfo,
+  DemoSwitch,
+  SimulatedCall,
 } from '../types';
 
 export const callsApi = api.injectEndpoints({
@@ -46,16 +48,23 @@ export const callsApi = api.injectEndpoints({
       providesTags: ['Demo'],
     }),
 
-    simulateCall: build.mutation<
-      { recordingId: string; jobId: string; duplicate: boolean },
-      string | null
-    >({
+    simulateCall: build.mutation<SimulatedCall, string | null>({
       query: (sampleId) => ({
         url: '/api/demo/simulate-call',
         method: 'POST',
         body: sampleId ? { sampleId } : {},
       }),
-      invalidatesTags: [{ type: 'Call', id: 'LIST' }, 'Client', 'Coach'],
+      // Demo: a simulated call uses up an armed "drop next webhook"
+      invalidatesTags: [{ type: 'Call', id: 'LIST' }, 'Client', 'Coach', 'Demo'],
+    }),
+
+    setDemoSwitch: build.mutation<void, { name: DemoSwitch; enabled: boolean }>({
+      query: ({ name, enabled }) => ({
+        url: `/api/demo/${name}`,
+        method: 'POST',
+        body: { enabled },
+      }),
+      invalidatesTags: ['Demo'],
     }),
 
     simulateWeek: build.mutation<
@@ -79,4 +88,5 @@ export const {
   useGetDemoInfoQuery,
   useSimulateCallMutation,
   useSimulateWeekMutation,
+  useSetDemoSwitchMutation,
 } = callsApi;

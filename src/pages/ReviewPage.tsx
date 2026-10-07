@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader, Panel, QueryState } from '../components';
 import {
   ReviewQueueList,
@@ -10,6 +10,7 @@ import { LIVE_POLL_MS } from '../store/api';
 
 export const ReviewPage = () => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const calls = useListCallsQuery(
     { status: 'needs_review' },
     { pollingInterval: LIVE_POLL_MS },
@@ -29,6 +30,7 @@ export const ReviewPage = () => {
             calls={calls.data ?? []}
             clients={clients}
             assigningCallId={assigningCallId}
+            highlightCallId={params.get('call')}
             onAssign={assignCall}
             onOpen={(id) => navigate(`/calls/${id}`)}
           />

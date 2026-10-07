@@ -9,6 +9,7 @@
 
 import { z } from 'zod';
 import { AVAILABLE_MODELS, LLM_SETTINGS } from '../../config/aiModels';
+import { createLogger } from '../../lib/logger';
 import {
   LLMOutputError,
   LLMProvider,
@@ -24,6 +25,8 @@ const MAX_OUTPUT_TOKENS = 6144;
 // Prompt (~1K) + thinking (~2-4K) + JSON (~1K). Keep it small enough for the
 // model to stay fully on the GPU (16K spilled 20% to CPU on an 8 GB card)
 const CONTEXT_TOKENS = 8192;
+
+const log = createLogger('llm');
 
 /** Resolves LLM_SETTINGS.ollamaModel to its API tag, URL and capabilities */
 const resolveModel = () => {
@@ -172,10 +175,9 @@ export const createOllamaProvider = (): LLMProvider => {
     let attempt = parseOutput(request.schema, response.content);
 
     if (!attempt.ok) {
-      console.warn(
-        `⚠️ Ollama output invalid for "${request.task}", repairing:`,
-        attempt.issues,
-      );
+      log.warn(`⚠️ Ollama output invalid for "${request.task}", repairing`, {
+        issues: attempt.issues,
+      });
       messages.push(
         { role: 'assistant', content: attempt.raw },
         {

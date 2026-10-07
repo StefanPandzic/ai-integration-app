@@ -3,6 +3,7 @@ import {
   AlertDescription,
   AlertIcon,
   Box,
+  Button,
   Grid,
   GridItem,
   HStack,
@@ -29,10 +30,13 @@ interface CallDetailViewProps {
   detail: CallDetail;
   clients: AssignableClient[];
   isAssigning: boolean;
+  isRetrying: boolean;
   onAssign: (clientId: string) => void;
+  /** Re-queues the dead job (shown only when the latest job is dead) */
+  onRetry: (jobId: string) => void;
   onOpenClient: (clientId: string) => void;
   onOpenCoach: (coachId: string) => void;
-  onOpenOutboxItem: (itemId: string) => void;
+  onOpenOutboxItem: (service: 'slack' | 'drive', itemId: string) => void;
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => {
@@ -53,7 +57,9 @@ export const CallDetailView = ({
   detail,
   clients,
   isAssigning,
+  isRetrying,
   onAssign,
+  onRetry,
   onOpenClient,
   onOpenCoach,
   onOpenOutboxItem,
@@ -61,7 +67,8 @@ export const CallDetailView = ({
   const colors = useAppColors();
   const { call, summary, client, coach, job, outbox } = detail;
   const duration = formatDuration(call.duration_seconds);
-  const isRetrying = job?.status === 'pending' && job.attempts > 0;
+  const isRetryScheduled = job?.status === 'pending' && job.attempts > 0;
+  const isDead = job?.status === 'dead';
 
   return (
     <Grid templateColumns={{ base: '1fr', lg: 'minmax(0, 1fr) 320px' }} gap={6}>
@@ -150,21 +157,48 @@ export const CallDetailView = ({
                 {!call.slack_message_ts ? (
                   'Not posted'
                 ) : outbox.slack ? (
-                  <Link color={colors.textAccent} onClick={() => onOpenOutboxItem(outbox.slack ?? '')}>
+                  <Link
+                    color={colors.textAccent}
+                    onClick={() => onOpenOutboxItem('slack', outbox.slack ?? '')}
+                  >
                     Posted · view message
                   </Link>
                 ) : (
                   `Posted (ts ${call.slack_message_ts})`
                 )}
               </Field>
-              {job?.last_error && (call.status === 'failed' || isRetrying) && (
-                <Alert status={isRetrying ? 'warning' : 'error'} borderRadius='md' fontSize='sm'>
+              <Field label='Drive'>
+                {!call.drive_file_id ? (
+                  'Not archived'
+                ) : outbox.drive ? (
+                  <Link
+                    color={colors.textAccent}
+                    onClick={() => onOpenOutboxItem('drive', outbox.drive ?? '')}
+                  >
+                    Archived · view document
+                  </Link>
+                ) : (
+                  'Archived'
+                )}
+              </Field>
+              {job?.last_error && (call.status === 'failed' || isRetryScheduled) && (
+                <Alert status={isRetryScheduled ? 'warning' : 'error'} borderRadius='md' fontSize='sm'>
                   <AlertIcon />
                   <AlertDescription wordBreak='break-word'>
-                    {isRetrying && 'Retrying: '}
+                    {isRetryScheduled && 'Retrying: '}
                     {job.last_error}
                   </AlertDescription>
                 </Alert>
+              )}
+              {isDead && job && (
+                <Button
+                  size='sm'
+                  colorScheme='brand'
+                  isLoading={isRetrying}
+                  onClick={() => onRetry(job.id)}
+                >
+                  Retry
+                </Button>
               )}
             </VStack>
           </Panel>

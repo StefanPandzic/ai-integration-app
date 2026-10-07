@@ -8,7 +8,10 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../../lib/logger';
 import { LLMOutputError, StructuredResult, generateStructured } from '../llm';
+
+const log = createLogger('reports');
 
 export class RefMap {
   private readonly byRef = new Map<string, string>();
@@ -68,7 +71,7 @@ export const generateChecked = async <S extends z.ZodType>(
         problems,
       );
     }
-    console.warn(`⚠️ ${request.task}: grounding problems, retrying:`, problems);
+    log.warn(`⚠️ ${request.task}: grounding problems, retrying`, { problems });
     correction = `\n\nYour previous answer had these problems:\n- ${problems.join('\n- ')}\nFix them. Only use refs that appear in the input, written exactly as given.`;
   }
 

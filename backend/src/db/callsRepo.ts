@@ -81,6 +81,18 @@ export const setSlackMessageTs = async (
   );
 };
 
+export const setCallDrive = async (
+  id: string,
+  fileId: string,
+  url: string,
+): Promise<void> => {
+  await query('update calls set drive_file_id = $2, drive_url = $3 where id = $1', [
+    id,
+    fileId,
+    url,
+  ]);
+};
+
 export interface StoredSummary {
   summary: CallSummary;
   provider: string;

@@ -2,13 +2,16 @@ import { useColorMode, useToast } from '@chakra-ui/react';
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import {
-  useGetDemoInfoQuery,
+  useDemoInfo,
   useListCallsQuery,
+  useSetDemoSwitchMutation,
   useSimulateCallMutation,
   useSimulateWeekMutation,
+  type DemoSwitch,
 } from './features/calls';
 import { AppShell } from './features/layout';
 import { createLogger } from './features/logging';
+import { useGetPipelineHealthQuery } from './features/pipeline';
 import {
   CallDetailPage,
   CallsPage,
@@ -18,6 +21,7 @@ import {
   CoachesPage,
   NotFoundPage,
   OutboxPage,
+  PipelinePage,
   ReportDetailPage,
   ReportsPage,
   ReviewPage,
@@ -39,17 +43,30 @@ function App() {
     setColorMode(colorMode);
   }, [colorMode, setColorMode]);
 
-  const { data: demoInfo = null } = useGetDemoInfoQuery();
+  const { data: demoInfo = null } = useDemoInfo();
   const { data: reviewCalls = [] } = useListCallsQuery(
     { status: 'needs_review' },
     { pollingInterval: LIVE_POLL_MS },
   );
+  const { data: pipelineHealth } = useGetPipelineHealthQuery(undefined, {
+    pollingInterval: LIVE_POLL_MS,
+  });
   const [simulateCall, { isLoading: isSimulating }] = useSimulateCallMutation();
+  const [setDemoSwitch] = useSetDemoSwitchMutation();
   const [simulateWeek, { isLoading: isSimulatingWeek }] = useSimulateWeekMutation();
 
   const handleSimulate = async (sampleId: string | null) => {
     try {
-      const { duplicate } = await simulateCall(sampleId).unwrap();
+      const { duplicate, webhookDropped } = await simulateCall(sampleId).unwrap();
+      if (webhookDropped) {
+        toast({
+          status: 'warning',
+          title: 'Webhook dropped',
+          description:
+            'The call is in Grain but never reached us. Press Reconcile now on the Pipeline page (normally nightly) to recover it.',
+        });
+        return;
+      }
       toast({
         status: duplicate ? 'info' : 'success',
         title: duplicate ? 'Recording already received' : 'Mock Grain call sent',
@@ -62,6 +79,15 @@ function App() {
         title: 'Simulate call failed',
         description: getErrorMessage(error),
       });
+    }
+  };
+
+  const handleToggleDemoSwitch = async (name: DemoSwitch, enabled: boolean) => {
+    try {
+      await setDemoSwitch({ name, enabled }).unwrap();
+    } catch (error) {
+      logger.error('Demo switch failed:', error);
+      toast({ status: 'error', title: 'Demo switch failed', description: getErrorMessage(error) });
     }
   };
 
@@ -87,11 +113,13 @@ function App() {
   return (
     <AppShell
       reviewCount={reviewCalls.length}
+      deadJobCount={pipelineHealth?.queue.dead ?? 0}
       demoInfo={demoInfo}
       isSimulating={isSimulating}
       isSimulatingWeek={isSimulatingWeek}
       colorMode={colorMode}
       onSimulate={handleSimulate}
+      onToggleDemoSwitch={handleToggleDemoSwitch}
       onSimulateWeek={handleSimulateWeek}
       onToggleColorMode={() => dispatch(toggleColorMode())}
     >
@@ -107,6 +135,7 @@ function App() {
         <Route path='/reports' element={<ReportsPage />} />
         <Route path='/reports/:reportId' element={<ReportDetailPage />} />
         <Route path='/outbox' element={<OutboxPage />} />
+        <Route path='/pipeline' element={<PipelinePage />} />
         <Route path='*' element={<NotFoundPage />} />
       </Routes>
     </AppShell>

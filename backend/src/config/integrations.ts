@@ -1,11 +1,16 @@
 /**
- * Integration Settings (Slack, Drive, report schedule)
+ * Integration Settings (Slack, Drive, schedules, rate limits)
  *
  * Connector modes and delivery targets read from the environment. Only the
  * mock Drive connector exists; Slack live mode reuses the Phase 2 client.
  */
 
+import type { RateLimit } from '../services/rateLimit';
+
 export type ConnectorMode = 'mock' | 'live';
+
+/** chat.postMessage allows about 1 message per second per channel */
+export const SLACK_RATE_LIMIT: RateLimit = { perSecond: 1, burst: 1 };
 
 export const getSlackMode = (): ConnectorMode =>
   process.env.SLACK_MODE === 'live' ? 'live' : 'mock';
@@ -34,3 +39,14 @@ export const getReportsCron = (): string =>
 
 export const isReportsCronEnabled = (): boolean =>
   process.env.REPORTS_CRON_ENABLED !== 'false';
+
+/** Nightly reconcile against Grain (default 2:00, America/Chicago) */
+export const getReconcileCron = (): string =>
+  process.env.RECONCILE_CRON || '0 2 * * *';
+
+export const isReconcileCronEnabled = (): boolean =>
+  process.env.RECONCILE_CRON_ENABLED !== 'false';
+
+/** How far back a reconcile looks; overlaps runs so a missed night is covered */
+export const getReconcileLookbackHours = (): number =>
+  Number(process.env.RECONCILE_LOOKBACK_HOURS) || 48;

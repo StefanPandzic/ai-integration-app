@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { findOutboxIdByExternalId } from '../db/outboxRepo';
 import { getReport, listReports, listRuns } from '../db/reportsRepo';
 import { enqueueWeeklyRun } from '../services/reports/runWeeklyReports';
-import { getScheduleInfo } from '../services/reports/scheduler';
+import { getScheduleInfo } from '../services/scheduler';
 import { ReportType } from '../types/pipeline';
 import { handle, isUuid, uuidParam } from './helpers';
 

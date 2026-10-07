@@ -17,7 +17,10 @@ import {
   getDriveMode,
 } from '../../config/integrations';
 import { recordOutbound } from '../../db/outboxRepo';
+import { createLogger } from '../../lib/logger';
 import { NonRetryableError } from '../queue/errors';
+
+const log = createLogger('drive');
 
 export interface SavedDocument {
   fileId: string;
@@ -45,7 +48,7 @@ const createMockConnector = (): DriveConnector => ({
       externalId: `mock-drive-${crypto.randomUUID()}`,
       idempotencyKey: `drive:${key}`,
     });
-    console.log(`📁 [Drive mock] ${folderPath}/${title}`);
+    log.info(`📁 [Drive mock] ${folderPath}/${title}`);
     return {
       fileId: item.external_id,
       url: `${getDashboardUrl()}/outbox?tab=drive&item=${item.id}`,

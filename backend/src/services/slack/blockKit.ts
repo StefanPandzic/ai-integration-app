@@ -4,7 +4,7 @@
 
 // Block Kit limits
 export const HEADER_MAX = 150;
-export const SECTION_MAX = 3000;
+const SECTION_MAX = 3000;
 
 /** Escape mrkdwn control characters in model-generated text */
 export const escape = (text: string): string =>

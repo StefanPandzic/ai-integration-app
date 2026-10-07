@@ -23,6 +23,7 @@ import {
   getManagerChannel,
 } from '../../config/integrations';
 import { getCoach } from '../../db/directoryRepo';
+import { createLogger, withLogContext } from '../../lib/logger';
 import { enqueueJob, getJob } from '../../db/jobsRepo';
 import {
   Period,
@@ -77,8 +78,10 @@ const readPayload = (job: JobRow): RunPayload => {
   return parsed.data;
 };
 
+const logger = createLogger('reports');
+
 const log = (runId: string, message: string) =>
-  console.log(`📊 [run ${runId.slice(0, 8)}] ${message}`);
+  withLogContext({ runId }, () => logger.info(`📊 ${message}`));
 
 const periodOf = (p: RunPayload): Period => ({
   periodStart: p.periodStart,
@@ -91,7 +94,7 @@ const dayFormat = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
 });
 
-export const formatPeriod = (period: Period): string =>
+const formatPeriod = (period: Period): string =>
   `${dayFormat.format(new Date(`${period.periodStart}T00:00:00Z`))} – ${dayFormat.format(new Date(`${period.periodEnd}T00:00:00Z`))}, ${period.periodEnd.slice(0, 4)}`;
 
 const waitedTooLong = (job: JobRow): boolean =>
@@ -295,6 +298,7 @@ export const handleManagerReport = async (job: JobRow): Promise<void> => {
         'Fix the cause (see the dead job error), then rerun the week from the Reports page.',
       ],
       { text: 'Open reports', url: `${getDashboardUrl()}/reports?period=${payload.periodStart}` },
+      `partial:${payload.runId}`,
     );
   }
 };

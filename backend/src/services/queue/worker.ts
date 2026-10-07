@@ -3,11 +3,14 @@
  *
  * Polls the jobs table and runs one job at a time (local LLMs are the
  * bottleneck). Failures are retried with backoff by failJob(); when a
- * call's job is dead-lettered the call is marked 'failed'.
+ * call's job is dead-lettered the call is marked 'failed' and onDead runs
+ * (ops alert). Each job runs inside a log context (jobId, callId, runId),
+ * so every line it logs can be traced back to it.
  */
 
 import { setCallStatus } from '../../db/callsRepo';
 import { claimNextJob, completeJob, failJob } from '../../db/jobsRepo';
+import { createLogger, errorMessage, withLogContext } from '../../lib/logger';
 import { JobRow, JobType } from '../../types/pipeline';
 import { LLMRefusalError } from '../llm';
 import { NonRetryableError, RetryLaterError } from './errors';
@@ -21,10 +24,17 @@ export interface WorkerOptions {
 
 const POLL_INTERVAL_MS = 1_000;
 
+const log = createLogger('worker');
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+const jobContext = (job: JobRow) => ({
+  jobId: job.id,
+  callId: job.call_id ?? undefined,
+  runId: typeof job.payload.runId === 'string' ? job.payload.runId : undefined,
+  recordingId:
+    typeof job.payload.recordingId === 'string' ? job.payload.recordingId : undefined,
+});
 
 export const createWorker = (
   handlers: Record<JobType, JobHandler>,
@@ -34,14 +44,14 @@ export const createWorker = (
   let loop: Promise<void> | null = null;
 
   const runJob = async (job: JobRow): Promise<void> => {
-    const label = `${job.type} ${job.id.slice(0, 8)} (attempt ${job.attempts}/${job.max_attempts})`;
+    const fields = { type: job.type, attempt: `${job.attempts}/${job.max_attempts}` };
     const startTime = Date.now();
-    console.log(`▶️ Job ${label}`);
+    log.info(`▶️ Job ${job.type} started`, fields);
 
     try {
       await handlers[job.type](job);
       await completeJob(job.id);
-      console.log(`✅ Job ${label} done in ${Date.now() - startTime}ms`);
+      log.info(`✅ Job ${job.type} done`, { ...fields, ms: Date.now() - startTime });
     } catch (error) {
       const retryable = !(
         error instanceof NonRetryableError || error instanceof LLMRefusalError
@@ -57,18 +67,19 @@ export const createWorker = (
       });
 
       if (isWaiting) {
-        console.log(`⏳ Job ${label} waiting: ${errorMessage(error)}`);
+        log.info(`⏳ Job ${job.type} waiting: ${errorMessage(error)}`, fields);
         return;
       }
-      console.error(
-        `❌ Job ${label} failed (${status === 'dead' ? 'dead-lettered' : 'will retry'}): ${errorMessage(error)}`,
+      log.error(
+        `❌ Job ${job.type} failed (${status === 'dead' ? 'dead-lettered' : 'will retry'})`,
+        { ...fields, error },
       );
       if (status === 'dead') {
         if (job.call_id) {
           await setCallStatus(job.call_id, 'failed');
         }
         await options.onDead?.(job, errorMessage(error)).catch((hookError) =>
-          console.error('❌ onDead hook failed:', errorMessage(hookError)),
+          log.error('❌ onDead hook failed', { error: hookError }),
         );
       }
     }
@@ -79,11 +90,11 @@ export const createWorker = (
       try {
         const job = await claimNextJob();
         if (job) {
-          await runJob(job);
+          await withLogContext(jobContext(job), () => runJob(job));
           continue;
         }
       } catch (error) {
-        console.error('❌ Worker poll error:', errorMessage(error));
+        log.error('❌ Worker poll error', { error });
       }
       await sleep(POLL_INTERVAL_MS);
     }
@@ -94,7 +105,7 @@ export const createWorker = (
       if (running) return;
       running = true;
       loop = pollLoop();
-      console.log('🧵 Job worker started');
+      log.info('🧵 Job worker started');
     },
     stop: async () => {
       running = false;

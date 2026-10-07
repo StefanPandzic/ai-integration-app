@@ -1,5 +1,6 @@
 /**
- * Report → standalone HTML document (the Google Drive copy)
+ * Report → standalone HTML document (the Google Drive copy). The page
+ * helpers are shared with the call summary document (drive/renderCall.ts).
  *
  * Self-contained (inline CSS) so it renders the same in Drive, a browser
  * or the dashboard's sandboxed preview. All model text is escaped.
@@ -10,7 +11,7 @@ import { CoachReportContent, RUBRIC } from '../../schemas/coachReport';
 import { ManagerReportContent, SentimentCounts } from '../../schemas/managerReport';
 import { ReportStatus } from '../../types/pipeline';
 
-const escapeHtml = (text: string): string =>
+export const escapeHtml = (text: string): string =>
   text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -31,13 +32,13 @@ const STYLE = `
   a { color: #3182ce; }
 `;
 
-const page = (title: string, subtitle: string, body: string): string =>
+export const page = (title: string, subtitle: string, body: string): string =>
   `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${STYLE}</style></head><body><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(subtitle)}</p>${body}</body></html>`;
 
-const stat = (label: string, value: string | number) =>
+export const stat = (label: string, value: string | number) =>
   `<div class="stat"><b>${escapeHtml(String(value))}</b><span class="muted">${escapeHtml(label)}</span></div>`;
 
-const list = (items: string[]): string =>
+export const list = (items: string[]): string =>
   items.length > 0
     ? `<ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
     : '<p class="muted">None.</p>';

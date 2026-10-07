@@ -10,11 +10,21 @@
  *   (see docs/INTEGRATIONS.md); the demo runs on the mock.
  *
  * A channel can be a channel ID or a user ID (posting to a user ID DMs them).
+ * postMessage() is rate limited per channel (SLACK_RATE_LIMIT) for both
+ * implementations, so the mock behaves like the real API under load.
  */
 
-import { ConnectorMode, getSlackMode } from '../../config/integrations';
+import {
+  ConnectorMode,
+  SLACK_RATE_LIMIT,
+  getSlackMode,
+} from '../../config/integrations';
 import { recordOutbound } from '../../db/outboxRepo';
+import { createLogger } from '../../lib/logger';
 import { NonRetryableError, RetryLaterError } from '../queue/errors';
+import { acquire } from '../rateLimit';
+
+const log = createLogger('slack');
 
 const POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 const MAX_INLINE_WAIT_MS = 10_000;
@@ -35,9 +45,18 @@ export interface SlackMessage {
   blocks: Record<string, unknown>[];
 }
 
+export interface PostOptions {
+  /**
+   * Mock only: a repeated key returns the first message instead of
+   * posting again (ops alerts). Live Slack has no such key; callers that
+   * must not double-post store the returned `ts` instead.
+   */
+  idempotencyKey?: string;
+}
+
 export interface SlackConnector {
   mode: ConnectorMode;
-  postMessage: (message: SlackMessage) => Promise<{ ts: string }>;
+  postMessage: (message: SlackMessage, options?: PostOptions) => Promise<{ ts: string }>;
 }
 
 interface PostMessageResponse {
@@ -57,17 +76,17 @@ const fakeTs = (): string => {
 
 const createMockConnector = (): SlackConnector => ({
   mode: 'mock',
-  postMessage: async (message) => {
-    const ts = fakeTs();
-    await recordOutbound({
+  postMessage: async (message, options) => {
+    const item = await recordOutbound({
       service: 'slack',
       target: message.channel,
       title: message.text,
       payload: { text: message.text, blocks: message.blocks },
-      externalId: ts,
+      externalId: fakeTs(),
+      idempotencyKey: options?.idempotencyKey,
     });
-    console.log(`💬 [Slack mock] ${message.channel}: ${message.text}`);
-    return { ts };
+    log.info(`💬 [Slack mock] ${message.channel}: ${message.text}`);
+    return { ts: item.external_id };
   },
 });
 
@@ -95,7 +114,7 @@ const createLiveConnector = (): SlackConnector => ({
         if (retryAfterMs > MAX_INLINE_WAIT_MS || attempt >= MAX_INLINE_RETRIES) {
           throw new RetryLaterError('Slack rate limited', retryAfterMs);
         }
-        console.warn(`⏳ Slack rate limited, retrying in ${retryAfterMs}ms`);
+        log.warn(`⏳ Slack rate limited, retrying`, { ms: retryAfterMs });
         await sleep(retryAfterMs);
         continue;
       }
@@ -122,11 +141,16 @@ const createLiveConnector = (): SlackConnector => ({
 
 let connector: SlackConnector | null = null;
 
-export const getSlackConnector = (): SlackConnector => {
+const getSlackConnector = (): SlackConnector => {
   connector ??=
     getSlackMode() === 'live' ? createLiveConnector() : createMockConnector();
   return connector;
 };
 
-export const postMessage = (message: SlackMessage): Promise<{ ts: string }> =>
-  getSlackConnector().postMessage(message);
+export const postMessage = async (
+  message: SlackMessage,
+  options?: PostOptions,
+): Promise<{ ts: string }> => {
+  await acquire(`slack:${message.channel}`, SLACK_RATE_LIMIT);
+  return getSlackConnector().postMessage(message, options);
+};

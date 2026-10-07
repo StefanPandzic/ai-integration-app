@@ -10,6 +10,7 @@ export * from './components/ReviewQueueList';
 // Hooks
 export * from './hooks/useAssignCall';
 export * from './hooks/useCallDetail';
+export * from './hooks/useDemoInfo';
 
 // Services
 export * from './services/callsApi';
