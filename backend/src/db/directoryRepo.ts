@@ -2,6 +2,7 @@
  * Directory Repository: coaches and clients
  */
 
+import { CallSummary } from '../schemas/callSummary';
 import { ClientRow, CoachRow } from '../types/pipeline';
 import { query } from './index';
 
@@ -37,16 +38,60 @@ export const getClient = async (id: string): Promise<ClientRow | null> =>
   (await query<ClientRow>('select * from clients where id = $1', [id]))[0] ??
   null;
 
-export interface ClientOption {
+export interface ClientListItem {
   id: string;
   name: string;
+  email: string | null;
+  slack_channel_id: string;
   coach_id: string | null;
   coach_name: string | null;
+  call_count: number;
+  last_call_at: Date | null;
+  latest_sentiment: CallSummary['client_sentiment'] | null;
 }
 
-export const listClients = (): Promise<ClientOption[]> =>
-  query<ClientOption>(
-    `select c.id, c.name, c.coach_id, co.name as coach_name
+export const listClients = ({
+  coachId = null,
+  clientId = null,
+}: { coachId?: string | null; clientId?: string | null } = {}): Promise<
+  ClientListItem[]
+> =>
+  query<ClientListItem>(
+    `select c.id, c.name, c.email, c.slack_channel_id,
+            c.coach_id, co.name as coach_name,
+            (select count(*)::int from calls where client_id = c.id) as call_count,
+            (select max(coalesce(started_at, created_at)) from calls
+              where client_id = c.id) as last_call_at,
+            (select cs.summary->>'client_sentiment'
+               from calls ca join call_summaries cs on cs.call_id = ca.id
+              where ca.client_id = c.id
+              order by coalesce(ca.started_at, ca.created_at) desc
+              limit 1) as latest_sentiment
        from clients c left join coaches co on co.id = c.coach_id
+      where ($1::uuid is null or c.coach_id = $1)
+        and ($2::uuid is null or c.id = $2)
       order by c.name`,
+    [coachId, clientId],
+  );
+
+export interface CoachListItem {
+  id: string;
+  name: string;
+  email: string;
+  client_count: number;
+  call_count: number;
+  calls_last_7_days: number;
+}
+
+export const listCoaches = (): Promise<CoachListItem[]> =>
+  query<CoachListItem>(
+    `select co.id, co.name, co.email,
+            (select count(*)::int from clients where coach_id = co.id) as client_count,
+            (select count(*)::int from calls where coach_id = co.id) as call_count,
+            (select count(*)::int from calls
+              where coach_id = co.id
+                and coalesce(started_at, created_at) > now() - interval '7 days'
+            ) as calls_last_7_days
+       from coaches co
+      order by co.name`,
   );

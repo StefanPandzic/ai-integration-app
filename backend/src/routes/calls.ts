@@ -1,33 +1,26 @@
 /**
  * Calls API
  *
- * GET  /api/calls?status=          list calls (review queue: status=needs_review)
- * GET  /api/calls/:id              call + summary
- * POST /api/calls                  ingest a browser-recorded call
+ * GET  /api/calls?status=&clientId=&coachId=&limit=&offset=
+ *                                  list calls (review queue: status=needs_review)
+ * GET  /api/calls/:id              call + summary + client/coach + latest job
+ * POST /api/calls                  ingest a call from another source (API)
  * POST /api/calls/:id/assign       resolve a review-queue call
- * GET  /api/clients                clients for the assign picker
- * GET  /api/demo/samples           mock Grain sample calls
- * POST /api/demo/simulate-call     run a sample through the webhook path
  */
 
 import crypto from 'crypto';
-import { NextFunction, Request, Response, Router } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { getCall, getSummary, listCalls } from '../db/callsRepo';
-import { listClients } from '../db/directoryRepo';
-import {
-  buildMockRecordingId,
-  getGrainMode,
-} from '../services/grain/grainConnector';
-import { SAMPLE_CALLS, getSampleCall } from '../services/grain/sampleCalls';
+import { getClient, getCoach } from '../db/directoryRepo';
+import { getLatestJobForCall } from '../db/jobsRepo';
 import {
   AssignError,
-  acceptGrainRecording,
   assignCall,
   ingestCall,
 } from '../services/pipeline/ingest';
-import { isSlackDryRun } from '../services/slack/slackClient';
 import { CallStatus, participantSchema } from '../types/pipeline';
+import { handle, isUuid, uuidParam } from './helpers';
 
 const CALL_STATUSES: CallStatus[] = [
   'received',
@@ -36,6 +29,8 @@ const CALL_STATUSES: CallStatus[] = [
   'posted',
   'failed',
 ];
+
+const MAX_PAGE_SIZE = 200;
 
 const browserCallSchema = z.object({
   title: z.string().nullable().default(null),
@@ -49,41 +44,49 @@ const assignSchema = z.object({
   coachId: z.uuid().nullable().default(null),
 });
 
-const simulateSchema = z.object({
-  sampleId: z.string().optional(),
+const pageSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(50),
+  offset: z.coerce.number().int().min(0).catch(0),
 });
-
-type AsyncHandler = (req: Request, res: Response) => Promise<void>;
-
-const handle =
-  (fn: AsyncHandler) => (req: Request, res: Response, next: NextFunction) =>
-    fn(req, res).catch(next);
-
-const isUuid = (value: string): boolean => z.uuid().safeParse(value).success;
 
 export const callsRouter = Router();
 
 callsRouter.get(
   '/calls',
   handle(async (req, res) => {
-    const status = CALL_STATUSES.find((s) => s === req.query.status) ?? null;
-    res.json({ calls: await listCalls(status) });
+    const { limit, offset } = pageSchema.parse(req.query);
+    const calls = await listCalls({
+      status: CALL_STATUSES.find((s) => s === req.query.status) ?? null,
+      clientId: uuidParam(req.query.clientId),
+      coachId: uuidParam(req.query.coachId),
+      limit,
+      offset,
+    });
+    res.json({ calls });
   }),
 );
 
 callsRouter.get(
   '/calls/:id',
   handle(async (req, res) => {
-    if (!isUuid(req.params.id)) {
-      res.status(404).json({ error: 'Call not found' });
-      return;
-    }
-    const call = await getCall(req.params.id);
+    const call = isUuid(req.params.id) ? await getCall(req.params.id) : null;
     if (!call) {
       res.status(404).json({ error: 'Call not found' });
       return;
     }
-    res.json({ call, summary: await getSummary(call.id) });
+    const [summary, client, coach, job] = await Promise.all([
+      getSummary(call.id),
+      call.client_id ? getClient(call.client_id) : null,
+      call.coach_id ? getCoach(call.coach_id) : null,
+      getLatestJobForCall(call.id),
+    ]);
+    res.json({
+      call,
+      summary,
+      client: client && { id: client.id, name: client.name },
+      coach: coach && { id: coach.id, name: coach.name },
+      job,
+    });
   }),
 );
 
@@ -121,50 +124,5 @@ callsRouter.post(
       if (!(error instanceof AssignError)) throw error;
       res.status(error.status).json({ error: error.message });
     }
-  }),
-);
-
-callsRouter.get(
-  '/clients',
-  handle(async (_req, res) => {
-    res.json({ clients: await listClients() });
-  }),
-);
-
-callsRouter.get('/demo/samples', (_req, res) => {
-  res.json({
-    grainMode: getGrainMode(),
-    slackDryRun: isSlackDryRun(),
-    samples: SAMPLE_CALLS.map(({ id, title, scenario }) => ({
-      id,
-      title,
-      scenario,
-    })),
-  });
-});
-
-callsRouter.post(
-  '/demo/simulate-call',
-  handle(async (req, res) => {
-    if (getGrainMode() !== 'mock') {
-      res.status(409).json({ error: 'Simulation requires GRAIN_MODE=mock' });
-      return;
-    }
-
-    const parsed = simulateSchema.safeParse(req.body ?? {});
-    const sample = parsed.success && parsed.data.sampleId
-      ? getSampleCall(parsed.data.sampleId)
-      : SAMPLE_CALLS[Math.floor(Math.random() * SAMPLE_CALLS.length)];
-    if (!sample) {
-      res.status(404).json({ error: 'Unknown sample' });
-      return;
-    }
-
-    const recordingId = buildMockRecordingId(sample.id);
-    const result = await acceptGrainRecording(recordingId, {
-      simulated: true,
-      sampleId: sample.id,
-    });
-    res.status(202).json({ recordingId, ...result });
   }),
 );

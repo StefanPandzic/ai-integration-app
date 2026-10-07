@@ -1,7 +1,7 @@
 ---
 name: performance-audit
-description: Audit the app for performance problems such as slow AI responses, duplicate backend calls, unnecessary re-renders or Redux Persist bloat. Use when something feels slow.
-argument-hint: component or service to audit
+description: Audit the app for performance problems such as slow call summaries, a backed-up job queue, duplicate or over-eager polling, slow SQL, or unnecessary re-renders. Use when something feels slow.
+argument-hint: page, component or service to audit
 ---
 
 # Performance Audit
@@ -10,12 +10,12 @@ Audit `$ARGUMENTS`, or the whole app if none is given. Measure before changing a
 
 ## Checks
 
-1. **Backend calls.** Each input should make exactly one `POST /api/ai/query` and one async `POST /api/ai/embed` per save. If there are duplicates, trace `App.tsx` → `useCommandInterpreter` → `backendService`.
-2. **Pipeline timing.** Read the backend `━━━ AI Query Pipeline ━━━` logs. A slow Stage 1 means the feature-embedding cache was missed; this is expected only once after a model switch. A slow Stage 2 means too much history. A slow Stage 3 points to the model choice or prompt size (`commands` mode is ~2000 tokens).
-3. **Re-renders.** Service instances belong in `useRef`, handlers in `useCallback`, and Redux selectors should be narrow, never the whole store.
-4. **Storage.** Transcription history must stay bounded (embeddings are ~3KB each). Handle `QuotaExceededError` by pruning the oldest entries.
-5. **Leaks.** Recognition, microphone and SSE readers must be cleaned up in effect cleanups.
+1. **Polling.** Count requests in the Network tab for 30 s on each page. List pages poll every `LIVE_POLL_MS`. RTK Query dedupes identical args, so two subscribers with the same filters should make one request. `useCallDetail` must stop polling once a call settles. Look for args objects that differ each render (new cache entries) and for polling on pages that don't need live state.
+2. **Pipeline latency.** Read the backend `📞 [call …]` logs and the `jobs` table (`attempts`, `last_error`, `run_at`). Summaries dominate, especially local `deepseek-r1` (minutes on CPU spill). Check the job retry rate and whether jobs are waiting on backoff.
+3. **SQL.** Run `explain analyze` on the list queries in `callsRepo.ts` and `directoryRepo.ts`. They use correlated subqueries and a lateral join on `jobs`. Check that the indexes in `db/migrations/` are used as data grows (`calls_status_idx`, `calls_coach_started_idx`, `jobs_call_id_idx`).
+4. **Re-renders.** Components are presentational. Check that pages don't pass new inline objects or arrays to large tables on every poll (React Profiler), and that `useAppSelector` selectors stay narrow.
+5. **Bundle.** `npm run build` warns above 500 kB. Consider route-level `lazy()` before tuning anything else.
 
 ## Report
 
-List each check as ✅ or ⚠️, with the evidence (a log line, a count or a profiler result) and a concrete fix with its file path. Don't propose fixes that would change the routing behaviour without saying so.
+List each check as ✅ or ⚠️, with the evidence (a request count, a log line, an `explain` plan or a profiler result) and a concrete fix with its file path.

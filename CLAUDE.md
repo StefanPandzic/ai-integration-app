@@ -1,6 +1,6 @@
-# Speech-to-Text AI App
+# Coaching Call Intelligence
 
-React + TypeScript frontend (Vite, Chakra UI, Redux Toolkit) with a Node/Express backend that owns all AI logic (Ollama, embeddings, RAG, intent routing). Upgrade in progress: see [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md). Full data-flow reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+React + TypeScript dashboard (Vite, Chakra UI, Redux Toolkit + RTK Query, React Router) for coaching calls, clients and coaches, with a Node/Express backend that owns all AI and pipeline logic (Grain → LLM summary → Slack). Upgrade in progress: see [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md). Architecture and API reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Commands
 
@@ -11,28 +11,31 @@ cd backend && npm run dev         # backend (ts-node-dev, :3001)
 cd backend && npm run type-check  # type-check backend
 cd backend && npm run db:migrate  # apply backend/db/migrations/*.sql (needs DATABASE_URL)
 cd backend && npm run db:seed     # demo coaches/clients matching the mock Grain sample calls
+cd backend && npm run db:reset-calls  # delete all calls, summaries and jobs (keeps coaches/clients)
 cd backend && npm run llm:check   # structured-output smoke test (`-- ollama` forces a provider)
 ```
 
-No test framework yet. Ollama must be running locally (`deepseek-r1`, `nomic-embed-text`) — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
+No test framework yet. Until `ANTHROPIC_API_KEY` is set, summaries use local Ollama (`deepseek-r1`) — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
 
 ## Layout
 
-- `backend/src/services/` — `queryService.ts` (pipeline orchestrator), `ollamaClient.ts`, `embedClient.ts`, `ragService.ts`, `intentRouting.ts`, `promptBuilder.ts`, `jsonParser.ts`
 - `backend/src/services/llm/` — `generateStructured()`: Claude (structured outputs) with Ollama fallback; all output zod-validated. Schemas in `backend/src/schemas/`
 - `backend/src/db/` — `pg` pool, migration runner, seed, and `*Repo.ts` query modules; SQL in `backend/db/migrations/`
 - `backend/src/services/pipeline/` — call pipeline: `ingest.ts` (entry points) → jobs → `processCall.ts` (match → summarize → Slack). Siblings: `queue/` is the Postgres job worker (backoff, dead-letter); `grain/` the connector (`GRAIN_MODE=mock` sample calls) and webhook signature; `slack/` the Block Kit poster (dry run without `SLACK_BOT_TOKEN`)
-- `backend/src/routes/` — `/webhooks/grain`, `/api/calls`, `/api/clients`, `/api/demo/*`
-- `backend/src/config/` — `aiModels.ts` (model metadata), `commandRegistry.ts`, `appKnowledgeBase.ts`
-- `src/features/{speech,ai,production,calls,logging}/` — each with `components/ hooks/ services/ types/ index.ts`
-- `src/store/slices/` — Redux slices; Redux Persist syncs to localStorage
+- `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`, read-only), `demo.ts` (`/api/demo/*`)
+- `backend/src/config/aiModels.ts` — LLM provider settings and Ollama model metadata
+- `src/pages/` — one component per route; `App.tsx` holds the routes and wires `AppShell`
+- `src/features/{calls,clients,coaches,layout,logging}/` — `components/ hooks/ services/ types/ index.ts`
+- `src/components/` — shared presentational primitives (`Panel`, `PageHeader`, `StatCard`, `QueryState`…)
+- `src/store/` — `api.ts` (RTK Query base), `slices/appSlice.ts` (color mode, persisted)
 
 ## Conventions
 
-- **Backend owns AI.** The frontend never calls Ollama directly; it uses `POST /api/ai/query` (SSE) and `POST /api/ai/embed` via `backendService.ts`.
-- **Service → Hook → Component.** Services are factory functions (closure state, no React). Hooks hold service instances in `useRef`. Components are presentational and receive everything via props; only `App.tsx` wires hooks.
-- **State:** Redux for global state (`useAppSelector` with narrow selectors, `useAppDispatch`); `useState` only for transient UI. Never call `localStorage` manually for persisted state.
-- **Styling:** Chakra UI only; colors from `useAppColors()` in `src/constants/colors.ts`. No CSS modules or inline styles.
+- **Backend owns AI.** The frontend never calls an LLM; it only reads the REST API.
+- **Server data → RTK Query.** Each feature injects endpoints into `store/api.ts` from `services/<feature>Api.ts` and exports the generated hooks. Use tags for invalidation and `LIVE_POLL_MS` polling for pipeline state. Never copy server data into slices or `useState`.
+- **Pages → Hooks → Components.** Pages (and `App.tsx`) call query/mutation hooks and feature hooks (`hooks/`, for logic such as conditional polling or toasts). Components are presentational and receive everything via props.
+- **State:** Redux slices only for client UI state (`useAppSelector` with narrow selectors, `useAppDispatch`); `useState` only for transient UI. Never call `localStorage` manually for persisted state.
+- **Styling:** Chakra UI only; colors from `useAppColors()` in `src/constants/colors.ts` (`brand` scale in `src/theme.ts`). No CSS modules or inline styles.
 - **Logging:** never `console.*` in frontend — use `createLogger('<feature>')` from `src/features/logging`.
-- **TypeScript:** strict, no `any`. Frontend env vars need the `VITE_` prefix; model config lives in `aiModels.ts`, not `.env`.
+- **TypeScript:** strict, no `any`. Frontend env vars need the `VITE_` prefix; model config lives in `aiModels.ts`, not `.env`. Frontend types in `features/*/types` mirror backend row shapes.
 - Feature folders export through a barrel `index.ts`.

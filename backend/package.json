@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "db:migrate": "ts-node-dev --transpile-only src/db/migrate.ts",
     "llm:check": "ts-node-dev --transpile-only src/scripts/llmCheck.ts",
-    "db:seed": "ts-node-dev --transpile-only src/db/seed.ts"
+    "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
+    "db:reset-calls": "ts-node-dev --transpile-only src/db/resetCalls.ts"
   },
   "keywords": [
     "ollama",

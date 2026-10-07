@@ -1,140 +1,125 @@
 import {
-  Badge,
   Box,
-  Divider,
   HStack,
   ListItem,
   Text,
   UnorderedList,
   VStack,
 } from '@chakra-ui/react';
+import type { ReactNode } from 'react';
+import { EmptyState } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
-import type { CallDetail, CallSummary } from '../types';
+import type { CallStatus, StoredSummary } from '../types';
+import { STATUS_LABEL } from '../utils/format';
+import { ActionItemList } from './ActionItemList';
+import { SentimentBadge } from './CallBadges';
 
 interface CallSummaryViewProps {
-  detail: CallDetail | null;
+  summary: StoredSummary | null;
+  status: CallStatus;
 }
 
-const SENTIMENT_SCHEME: Record<CallSummary['client_sentiment'], string> = {
-  positive: 'green',
-  neutral: 'gray',
-  mixed: 'yellow',
-  negative: 'red',
+const Section = ({ title, children }: { title: string; children: ReactNode }) => {
+  const colors = useAppColors();
+  return (
+    <Box>
+      <Text
+        fontSize='xs'
+        fontWeight='semibold'
+        textTransform='uppercase'
+        letterSpacing='wide'
+        color={colors.textSecondary}
+        mb={2}
+      >
+        {title}
+      </Text>
+      {children}
+    </Box>
+  );
 };
 
 /**
  * Read-only view of one call's structured summary
  */
-export const CallSummaryView = ({ detail }: CallSummaryViewProps) => {
+export const CallSummaryView = ({ summary, status }: CallSummaryViewProps) => {
   const colors = useAppColors();
 
-  if (!detail) {
+  if (!summary) {
     return (
-      <Text color={colors.textSecondary} fontSize='sm'>
-        Select a call to see its summary.
-      </Text>
+      <EmptyState
+        title='No summary yet'
+        description={
+          status === 'needs_review'
+            ? 'Assign this call to a client to summarize it.'
+            : `Status: ${STATUS_LABEL[status]}. The summary appears here once the pipeline finishes.`
+        }
+      />
     );
   }
 
-  const { call, summary } = detail;
-  const participants = call.participants.map((p) => p.name).join(', ');
+  const { overview, key_points, action_items, client_sentiment, risks, notable_quotes } =
+    summary.summary;
 
   return (
-    <VStack align='stretch' spacing={4}>
-      <Box>
-        <Text fontWeight='bold' color={colors.headingBlue}>
-          {call.title ?? 'Untitled call'}
+    <VStack align='stretch' spacing={6}>
+      <Section title='Overview'>
+        <HStack mb={2}>
+          <SentimentBadge sentiment={client_sentiment} />
+          <Text fontSize='xs' color={colors.textSecondary}>
+            {summary.provider}/{summary.model}
+          </Text>
+        </HStack>
+        <Text color={colors.textPrimary} lineHeight='tall'>
+          {overview}
         </Text>
-        <Text fontSize='sm' color={colors.textSecondary}>
-          {participants}
-        </Text>
-      </Box>
+      </Section>
 
-      {!summary ? (
-        <Text fontSize='sm' color={colors.textSecondary}>
-          No summary yet ({call.status.replace('_', ' ')}).
-        </Text>
-      ) : (
-        <>
-          <HStack>
-            <Badge colorScheme={SENTIMENT_SCHEME[summary.summary.client_sentiment]}>
-              {summary.summary.client_sentiment}
-            </Badge>
-            <Text fontSize='xs' color={colors.textSecondary}>
-              {summary.provider}/{summary.model}
-            </Text>
-          </HStack>
+      {key_points.length > 0 && (
+        <Section title='Key points'>
+          <UnorderedList spacing={1.5} color={colors.textPrimary}>
+            {key_points.map((point) => (
+              <ListItem key={point}>{point}</ListItem>
+            ))}
+          </UnorderedList>
+        </Section>
+      )}
 
-          <Text color={colors.textPrimary}>{summary.summary.overview}</Text>
+      {action_items.length > 0 && (
+        <Section title={`Action items (${action_items.length})`}>
+          <ActionItemList items={action_items} />
+        </Section>
+      )}
 
-          {summary.summary.key_points.length > 0 && (
-            <Box>
-              <Text fontWeight='semibold' mb={1}>
-                Key points
-              </Text>
-              <UnorderedList spacing={1} color={colors.textPrimary}>
-                {summary.summary.key_points.map((point) => (
-                  <ListItem key={point}>{point}</ListItem>
-                ))}
-              </UnorderedList>
-            </Box>
-          )}
+      {risks.length > 0 && (
+        <Section title='Risks'>
+          <UnorderedList spacing={1.5} color={colors.textPrimary}>
+            {risks.map((risk) => (
+              <ListItem key={risk}>{risk}</ListItem>
+            ))}
+          </UnorderedList>
+        </Section>
+      )}
 
-          {summary.summary.action_items.length > 0 && (
-            <Box>
-              <Text fontWeight='semibold' mb={1}>
-                Action items
-              </Text>
-              <UnorderedList spacing={1} color={colors.textPrimary}>
-                {summary.summary.action_items.map((item) => (
-                  <ListItem key={`${item.owner}-${item.task}`}>
-                    <Text as='span' fontWeight='semibold'>
-                      {item.owner}
-                    </Text>{' '}
-                    ({item.owner_role}): {item.task}
-                    {item.due && (
-                      <Text as='span' color={colors.textSecondary}>
-                        {' '}
-                        (due {item.due})
-                      </Text>
-                    )}
-                  </ListItem>
-                ))}
-              </UnorderedList>
-            </Box>
-          )}
-
-          {summary.summary.risks.length > 0 && (
-            <Box>
-              <Text fontWeight='semibold' mb={1}>
-                Risks
-              </Text>
-              <UnorderedList spacing={1} color={colors.textPrimary}>
-                {summary.summary.risks.map((risk) => (
-                  <ListItem key={risk}>{risk}</ListItem>
-                ))}
-              </UnorderedList>
-            </Box>
-          )}
-
-          {summary.summary.notable_quotes.length > 0 && (
-            <>
-              <Divider />
-              <VStack align='stretch' spacing={2}>
-                {summary.summary.notable_quotes.map((quote) => (
-                  <Text
-                    key={quote.quote}
-                    fontSize='sm'
-                    fontStyle='italic'
-                    color={colors.textSecondary}
-                  >
-                    “{quote.quote}” — {quote.speaker}
-                  </Text>
-                ))}
-              </VStack>
-            </>
-          )}
-        </>
+      {notable_quotes.length > 0 && (
+        <Section title='Notable quotes'>
+          <VStack align='stretch' spacing={3}>
+            {notable_quotes.map((quote) => (
+              <Box
+                key={quote.quote}
+                borderLeftWidth='3px'
+                borderColor={colors.quoteBorder}
+                pl={3}
+              >
+                <Text fontStyle='italic' color={colors.textPrimary}>
+                  “{quote.quote}”
+                </Text>
+                <Text fontSize='sm' color={colors.textSecondary}>
+                  {quote.speaker}
+                </Text>
+              </Box>
+            ))}
+          </VStack>
+        </Section>
       )}
     </VStack>
   );

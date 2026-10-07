@@ -1,0 +1,69 @@
+/**
+ * Calls API (RTK Query endpoints for /api/calls and /api/demo)
+ */
+
+import { api } from '../../../store/api';
+import type {
+  CallDetail,
+  CallFilters,
+  CallListItem,
+  DemoInfo,
+} from '../types';
+
+export const callsApi = api.injectEndpoints({
+  endpoints: (build) => ({
+    listCalls: build.query<CallListItem[], CallFilters | void>({
+      query: (filters) => ({ url: '/api/calls', params: filters ?? {} }),
+      transformResponse: (response: { calls: CallListItem[] }) =>
+        response.calls,
+      providesTags: (calls = []) => [
+        { type: 'Call', id: 'LIST' },
+        ...calls.map((call) => ({ type: 'Call' as const, id: call.id })),
+      ],
+    }),
+
+    getCall: build.query<CallDetail, string>({
+      query: (id) => `/api/calls/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'Call', id }],
+    }),
+
+    assignCall: build.mutation<void, { callId: string; clientId: string }>({
+      query: ({ callId, clientId }) => ({
+        url: `/api/calls/${callId}/assign`,
+        method: 'POST',
+        body: { clientId },
+      }),
+      invalidatesTags: (_result, _error, { callId }) => [
+        { type: 'Call', id: 'LIST' },
+        { type: 'Call', id: callId },
+        'Client',
+        'Coach',
+      ],
+    }),
+
+    getDemoInfo: build.query<DemoInfo, void>({
+      query: () => '/api/demo/samples',
+      providesTags: ['Demo'],
+    }),
+
+    simulateCall: build.mutation<
+      { recordingId: string; jobId: string; duplicate: boolean },
+      string | null
+    >({
+      query: (sampleId) => ({
+        url: '/api/demo/simulate-call',
+        method: 'POST',
+        body: sampleId ? { sampleId } : {},
+      }),
+      invalidatesTags: [{ type: 'Call', id: 'LIST' }, 'Client', 'Coach'],
+    }),
+  }),
+});
+
+export const {
+  useListCallsQuery,
+  useGetCallQuery,
+  useAssignCallMutation,
+  useGetDemoInfoQuery,
+  useSimulateCallMutation,
+} = callsApi;

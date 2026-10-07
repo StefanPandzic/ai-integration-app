@@ -3,34 +3,30 @@ import { useColorModeValue } from '@chakra-ui/react';
 /**
  * Centralized color constants for the application
  * Uses Chakra UI's useColorModeValue hook for light/dark theme support
+ * (`brand` is defined in src/theme.ts)
  *
  * @returns Object containing all color values for the current theme
  */
 export const useAppColors = () => {
   return {
-    // Background colors
-    bgPrimary: useColorModeValue('white', 'gray.800'),
-    bgSecondary: useColorModeValue('gray.50', 'gray.900'),
-    bgBlue: useColorModeValue('blue.50', 'blue.900'),
-    bgAiBubble: useColorModeValue('gray.100', 'gray.700'),
+    // Backgrounds
+    bgApp: useColorModeValue('gray.50', 'gray.900'),
+    bgSurface: useColorModeValue('white', 'gray.800'),
+    bgSubtle: useColorModeValue('gray.50', 'whiteAlpha.50'),
+    bgHover: useColorModeValue('gray.50', 'whiteAlpha.100'),
+    bgActive: useColorModeValue('brand.50', 'whiteAlpha.200'),
 
-    // Border colors
-    borderPrimary: useColorModeValue('gray.200', 'gray.700'),
-    borderBlue: useColorModeValue('blue.200', 'blue.700'),
-    borderGreen: useColorModeValue('green.200', 'green.700'),
+    // Borders
+    border: useColorModeValue('gray.200', 'gray.700'),
+    borderAccent: useColorModeValue('brand.300', 'brand.400'),
 
-    // Text colors
-    textPrimary: useColorModeValue('gray.700', 'gray.300'),
+    // Text
+    heading: useColorModeValue('gray.900', 'gray.50'),
+    textPrimary: useColorModeValue('gray.700', 'gray.200'),
     textSecondary: useColorModeValue('gray.500', 'gray.400'),
-    textBlue: useColorModeValue('blue.700', 'blue.200'),
-    textBlueMuted: useColorModeValue('blue.600', 'blue.300'),
-    textPurple: useColorModeValue('purple.600', 'purple.300'),
+    textAccent: useColorModeValue('brand.600', 'brand.300'),
 
-    // Heading colors
-    headingBlue: useColorModeValue('blue.800', 'blue.100'),
-
-    // Status colors
-    statusActive: useColorModeValue('green.500', 'green.400'),
-    statusInactive: useColorModeValue('gray.400', 'gray.600'),
+    // Quotes and callouts
+    quoteBorder: useColorModeValue('brand.200', 'brand.700'),
   };
 };

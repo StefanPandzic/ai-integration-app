@@ -11,17 +11,19 @@ This rebuilds the speech-to-text app as a working prototype of the Operations.co
 
 ## What stays, what goes
 
-| Keep / reuse | Remove |
+Done in the redesign (between Phase 2 and Phase 3): the app now contains only calls, clients and coaches.
+
+| Kept | Removed |
 | --- | --- |
-| Express backend, SSE streaming, `promptBuilder`, model abstraction | Voice commands, handler registry, command registry |
-| Web Speech capture (reused for "record a mock call") | Production-line feature, theme/title commands |
-| Logging system, Chakra UI, Redux | Intent routing for app commands |
+| Express backend, LLM provider abstraction (Claude + Ollama fallback) | Voice commands, handler and command registries, `/api/ai/*` and `/api/config/*` |
+| Logging system, Chakra UI, Redux (now with RTK Query) | Web Speech capture and browser recording (Grain records meetings itself; the demo uses mock samples) |
+| Call pipeline, job queue, Grain mock connector, Slack poster | Production lines, intent routing, RAG, embeddings (`nomic-embed-text` no longer needed) |
 
 ## Target architecture
 
 ```
 Grain webhook ─▶ POST /webhooks/grain ─▶ calls table (unique grain_recording_id)
-   (or mock / browser recording)               │
+   (or mock samples)                           │
                                                ▼
                                    job queue (Postgres) ──▶ Claude: call summary (JSON schema)
                                                │                    │
@@ -46,6 +48,12 @@ Weekly cron (Mon 7:00 CT) ─▶ coach reports (from summaries, not transcripts)
 - Match each call to a coach and client by participant email, then by a title rule. Calls that don't match go to a review queue and are never posted to a guessed channel.
 - **Summary schema:** `overview`, `key_points[]`, `action_items[{owner, owner_role, task, due}]`, `client_sentiment`, `risks[]`, `notable_quotes[]`. Owners must be call participants.
 - Post to Slack as Block Kit. Honor `Retry-After` on a 429. Store the message `ts` so a retry never double-posts.
+
+### Redesign (done)
+- Removed everything outside calls, clients and coaches (see the table above).
+- Backend: routes split into `calls.ts`, `directory.ts` (read-only clients and coaches) and `demo.ts`. Call list filters (`status`, `clientId`, `coachId`, paging). Client and coach detail endpoints.
+- Frontend: React Router shell (sidebar, top bar with **Simulate call**). Pages: Calls, Call detail, Review queue, Clients, Client profile, Coaches, Coach profile, Reports placeholder. Server data comes through RTK Query with polling.
+- Phase 3 plugs into `/reports` and the "Weekly report" panel on the coach profile.
 
 ### Phase 3: Weekly reports (Day 3, morning)
 - A `node-cron` job, plus a manual "Run now" button for the demo.

@@ -1,79 +1,51 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import {
+  FLUSH,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+  REHYDRATE,
+  persistReducer,
+  persistStore,
+} from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import { combineReducers } from '@reduxjs/toolkit';
+import { api } from './api';
 import appReducer from './slices/appSlice';
-import transcriptionReducer from './slices/transcriptionSlice';
-import productionReducer from './slices/productionSlice';
-import commandReducer from './slices/commandSlice';
 
 /**
- * Redux-persist configuration
- * Persists transcription history to localStorage
+ * Only the `app` slice (color mode) is persisted; the RTK Query cache
+ * is refetched from the backend
  */
 const persistConfig = {
-  key: 'root',
+  key: 'coaching',
   storage,
-  whitelist: ['transcription'], // Only persist transcription slice
+  whitelist: ['app'],
 };
 
-/**
- * App-specific persist configuration for selective persistence
- * Only persist selectedModel, selectedLanguage, and colorMode from app slice
- */
-const appPersistConfig = {
-  key: 'app',
-  storage,
-  whitelist: ['selectedModel', 'selectedLanguage', 'colorMode'], // Only persist these fields
-};
-
-/**
- * Transcription-specific persist configuration
- * Only persist history array, not transient UI state like isSaving
- */
-const transcriptionPersistConfig = {
-  key: 'transcription',
-  storage,
-  whitelist: ['history'], // Only persist history, not isSaving
-};
-
-const rootReducer = combineReducers({
-  app: persistReducer(appPersistConfig, appReducer),
-  transcription: persistReducer(
-    transcriptionPersistConfig,
-    transcriptionReducer,
-  ),
-  production: productionReducer,
-  command: commandReducer,
+// Keys written by the old speech-to-text app (transcripts with embeddings)
+const LEGACY_PERSIST_KEYS = ['persist:root', 'persist:app', 'persist:transcription'];
+LEGACY_PERSIST_KEYS.forEach((key) => {
+  void storage.removeItem(key);
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const rootReducer = combineReducers({
+  app: appReducer,
+  [api.reducerPath]: api.reducer,
+});
 
-/**
- * Configure Redux store with persistence middleware
- * Redux DevTools enabled in development mode only
- */
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: persistReducer(persistConfig, rootReducer),
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore all redux-persist actions for serialization check
-        ignoredActions: [
-          'persist/FLUSH',
-          'persist/REHYDRATE',
-          'persist/PAUSE',
-          'persist/PERSIST',
-          'persist/PURGE',
-          'persist/REGISTER',
-        ],
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
-  devTools: import.meta.env.DEV, // Enable Redux DevTools in development only
+    }).concat(api.middleware),
+  devTools: import.meta.env.DEV,
 });
 
 export const persistor = persistStore(store);
 
-// Export types for TypeScript usage
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

@@ -3,9 +3,8 @@ import type { LoggerConfig, LogLevel, FeatureName } from '../types';
 const isDev = import.meta.env.DEV;
 
 export const logConfig: LoggerConfig = {
-  enabledFeatures: ['speech', 'ai', 'production', 'calls', 'app', 'rag', 'ollama'],
+  enabledFeatures: ['calls', 'clients', 'coaches', 'app', 'api'],
   logLevel: isDev ? 'debug' : 'info',
-  enableVerboseOllama: isDev,
 };
 
 export function updateLogConfig(updates: Partial<LoggerConfig>): void {
@@ -28,6 +27,3 @@ export function setLogLevel(level: LogLevel): void {
   logConfig.logLevel = level;
 }
 
-export function setVerboseOllama(enabled: boolean): void {
-  logConfig.enableVerboseOllama = enabled;
-}

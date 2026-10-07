@@ -100,3 +100,25 @@ export const failJob = async (
   );
   return dead ? 'dead' : 'pending';
 };
+
+export interface JobSnapshot {
+  type: JobType;
+  status: JobRow['status'];
+  attempts: number;
+  max_attempts: number;
+  last_error: string | null;
+  run_at: Date;
+  updated_at: Date;
+}
+
+/** The most recent job for a call (detail view pipeline state) */
+export const getLatestJobForCall = async (
+  callId: string,
+): Promise<JobSnapshot | null> =>
+  (
+    await query<JobSnapshot>(
+      `select type, status, attempts, max_attempts, last_error, run_at, updated_at
+         from jobs where call_id = $1 order by created_at desc limit 1`,
+      [callId],
+    )
+  )[0] ?? null;

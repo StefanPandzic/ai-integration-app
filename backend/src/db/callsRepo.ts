@@ -127,32 +127,76 @@ export interface CallListItem {
   started_at: Date | null;
   created_at: Date;
   slack_message_ts: string | null;
+  client_id: string | null;
   client_name: string | null;
+  coach_id: string | null;
   coach_name: string | null;
+  client_sentiment: CallSummary['client_sentiment'] | null;
+  action_item_count: number | null;
   job_status: JobStatus | null;
   job_attempts: number | null;
   job_error: string | null;
 }
 
-export const listCalls = (
-  status: CallStatus | null,
+export interface CallFilters {
+  status?: CallStatus | null;
+  clientId?: string | null;
+  coachId?: string | null;
+  limit?: number;
+  offset?: number;
+}
+
+export const listCalls = ({
+  status = null,
+  clientId = null,
+  coachId = null,
   limit = 50,
-): Promise<CallListItem[]> =>
+  offset = 0,
+}: CallFilters = {}): Promise<CallListItem[]> =>
   query<CallListItem>(
     `select ca.id, ca.title, ca.source, ca.status, ca.review_reason,
             ca.started_at, ca.created_at, ca.slack_message_ts,
-            cl.name as client_name, co.name as coach_name,
+            ca.client_id, cl.name as client_name,
+            ca.coach_id, co.name as coach_name,
+            cs.summary->>'client_sentiment' as client_sentiment,
+            jsonb_array_length(cs.summary->'action_items') as action_item_count,
             j.status as job_status, j.attempts as job_attempts,
             j.last_error as job_error
        from calls ca
        left join clients cl on cl.id = ca.client_id
        left join coaches co on co.id = ca.coach_id
+       left join call_summaries cs on cs.call_id = ca.id
        left join lateral (
          select status, attempts, last_error from jobs
           where call_id = ca.id order by created_at desc limit 1
        ) j on true
-      where $1::text is null or ca.status = $1
-      order by ca.created_at desc
+      where ($1::text is null or ca.status = $1)
+        and ($2::uuid is null or ca.client_id = $2)
+        and ($3::uuid is null or ca.coach_id = $3)
+      order by coalesce(ca.started_at, ca.created_at) desc
+      limit $4 offset $5`,
+    [status, clientId, coachId, limit, offset],
+  );
+
+export interface ClientCallSummary {
+  call_id: string;
+  title: string | null;
+  call_date: Date;
+  summary: CallSummary;
+}
+
+/** Summaries of a client's most recent calls, newest first */
+export const listClientSummaries = (
+  clientId: string,
+  limit = 10,
+): Promise<ClientCallSummary[]> =>
+  query<ClientCallSummary>(
+    `select ca.id as call_id, ca.title,
+            coalesce(ca.started_at, ca.created_at) as call_date, cs.summary
+       from calls ca
+       join call_summaries cs on cs.call_id = ca.id
+      where ca.client_id = $1
+      order by call_date desc
       limit $2`,
-    [status, limit],
+    [clientId, limit],
   );

@@ -21,13 +21,11 @@ function shouldLog(feature: FeatureName, level: LogLevel): boolean {
 
 function formatFeaturePrefix(feature: FeatureName): string {
   const prefixes: Record<FeatureName, string> = {
-    speech: '[SPEECH]',
-    ai: '[AI]',
-    production: '[PRODUCTION]',
     calls: '[CALLS]',
     app: '[APP]',
-    rag: '[RAG]',
-    ollama: '[OLLAMA]',
+    clients: '[CLIENTS]',
+    coaches: '[COACHES]',
+    api: '[API]',
   };
   return prefixes[feature];
 }
@@ -36,25 +34,25 @@ export function createLogger(feature: FeatureName): ILogger {
   const prefix = formatFeaturePrefix(feature);
 
   return {
-    debug: (...args: any[]) => {
+    debug: (...args: unknown[]) => {
       if (shouldLog(feature, 'debug')) {
         console.log(prefix, ...args);
       }
     },
 
-    info: (...args: any[]) => {
+    info: (...args: unknown[]) => {
       if (shouldLog(feature, 'info')) {
         console.log(prefix, ...args);
       }
     },
 
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
       if (shouldLog(feature, 'warn')) {
         console.warn(prefix, ...args);
       }
     },
 
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
       if (shouldLog(feature, 'error')) {
         console.error(prefix, ...args);
       }
