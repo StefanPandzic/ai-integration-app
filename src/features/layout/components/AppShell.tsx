@@ -1,6 +1,7 @@
 import {
   AtSignIcon,
   CalendarIcon,
+  EmailIcon,
   HamburgerIcon,
   MoonIcon,
   PhoneIcon,
@@ -27,13 +28,16 @@ import { NavLink } from 'react-router-dom';
 import { useAppColors } from '../../../constants/colors';
 import type { DemoInfo } from '../../calls';
 import { SimulateCallMenu } from './SimulateCallMenu';
+import { SimulateWeekMenu } from './SimulateWeekMenu';
 
 interface AppShellProps {
   reviewCount: number;
   demoInfo: DemoInfo | null;
   isSimulating: boolean;
+  isSimulatingWeek: boolean;
   colorMode: 'light' | 'dark';
   onSimulate: (sampleId: string | null) => void;
+  onSimulateWeek: (count: number | null) => void;
   onToggleColorMode: () => void;
   children: ReactNode;
 }
@@ -121,8 +125,10 @@ export const AppShell = ({
   reviewCount,
   demoInfo,
   isSimulating,
+  isSimulatingWeek,
   colorMode,
   onSimulate,
+  onSimulateWeek,
   onToggleColorMode,
   children,
 }: AppShellProps) => {
@@ -134,7 +140,8 @@ export const AppShell = ({
     { to: '/review', label: 'Review queue', icon: <WarningTwoIcon />, badge: reviewCount },
     { to: '/clients', label: 'Clients', icon: <AtSignIcon /> },
     { to: '/coaches', label: 'Coaches', icon: <StarIcon /> },
-    { to: '/reports', label: 'Reports', icon: <CalendarIcon />, soon: true },
+    { to: '/reports', label: 'Reports', icon: <CalendarIcon /> },
+    { to: '/outbox', label: 'Outbox', icon: <EmailIcon /> },
   ];
 
   return (
@@ -193,21 +200,37 @@ export const AppShell = ({
             />
             {demoInfo && (
               <HStack spacing={2} display={{ base: 'none', sm: 'flex' }}>
-                <Badge variant='outline'>Grain: {demoInfo.grainMode}</Badge>
-                <Badge variant='outline' colorScheme={demoInfo.slackDryRun ? 'yellow' : 'green'}>
-                  Slack: {demoInfo.slackDryRun ? 'dry run' : 'live'}
-                </Badge>
+                {(
+                  [
+                    ['Grain', demoInfo.grainMode],
+                    ['Slack', demoInfo.slackMode],
+                    ['Drive', demoInfo.driveMode],
+                  ] as const
+                ).map(([service, mode]) => (
+                  <Badge key={service} variant='outline' colorScheme={mode === 'mock' ? 'yellow' : 'green'}>
+                    {service}: {mode}
+                  </Badge>
+                ))}
               </HStack>
             )}
           </HStack>
 
           <HStack spacing={2}>
             {demoInfo?.grainMode === 'mock' && (
-              <SimulateCallMenu
-                samples={demoInfo.samples}
-                isSimulating={isSimulating}
-                onSimulate={onSimulate}
-              />
+              <>
+                <Box display={{ base: 'none', md: 'block' }}>
+                  <SimulateWeekMenu
+                    sampleCount={demoInfo.samples.length}
+                    isSimulating={isSimulatingWeek}
+                    onSimulateWeek={onSimulateWeek}
+                  />
+                </Box>
+                <SimulateCallMenu
+                  samples={demoInfo.samples}
+                  isSimulating={isSimulating}
+                  onSimulate={onSimulate}
+                />
+              </>
             )}
             <IconButton
               aria-label='Toggle color mode'

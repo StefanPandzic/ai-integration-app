@@ -5,5 +5,7 @@ export * from './ClientsPage';
 export * from './CoachDetailPage';
 export * from './CoachesPage';
 export * from './NotFoundPage';
+export * from './OutboxPage';
+export * from './ReportDetailPage';
 export * from './ReportsPage';
 export * from './ReviewPage';

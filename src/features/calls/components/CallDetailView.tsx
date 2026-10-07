@@ -32,6 +32,7 @@ interface CallDetailViewProps {
   onAssign: (clientId: string) => void;
   onOpenClient: (clientId: string) => void;
   onOpenCoach: (coachId: string) => void;
+  onOpenOutboxItem: (itemId: string) => void;
 }
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => {
@@ -55,9 +56,10 @@ export const CallDetailView = ({
   onAssign,
   onOpenClient,
   onOpenCoach,
+  onOpenOutboxItem,
 }: CallDetailViewProps) => {
   const colors = useAppColors();
-  const { call, summary, client, coach, job } = detail;
+  const { call, summary, client, coach, job, outbox } = detail;
   const duration = formatDuration(call.duration_seconds);
   const isRetrying = job?.status === 'pending' && job.attempts > 0;
 
@@ -145,7 +147,15 @@ export const CallDetailView = ({
                 </Field>
               )}
               <Field label='Slack'>
-                {call.slack_message_ts ? `Posted (ts ${call.slack_message_ts})` : 'Not posted'}
+                {!call.slack_message_ts ? (
+                  'Not posted'
+                ) : outbox.slack ? (
+                  <Link color={colors.textAccent} onClick={() => onOpenOutboxItem(outbox.slack ?? '')}>
+                    Posted · view message
+                  </Link>
+                ) : (
+                  `Posted (ts ${call.slack_message_ts})`
+                )}
               </Field>
               {job?.last_error && (call.status === 'failed' || isRetrying) && (
                 <Alert status={isRetrying ? 'warning' : 'error'} borderRadius='md' fontSize='sm'>

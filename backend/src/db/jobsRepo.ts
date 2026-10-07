@@ -47,6 +47,9 @@ export const enqueueJob = async (
   return { jobId: existing[0].id, created: false };
 };
 
+export const getJob = async (id: string): Promise<JobRow | null> =>
+  (await query<JobRow>('select * from jobs where id = $1', [id]))[0] ?? null;
+
 export const claimNextJob = async (): Promise<JobRow | null> => {
   const rows = await query<JobRow>(
     `update jobs
@@ -86,17 +89,26 @@ const backoffMs = (attempts: number): number =>
 export const failJob = async (
   job: JobRow,
   error: string,
-  options: { retryable: boolean; delayMs?: number },
+  options: { retryable: boolean; delayMs?: number; refundAttempt?: boolean },
 ): Promise<'pending' | 'dead'> => {
-  const dead = !options.retryable || job.attempts >= job.max_attempts;
+  const refund = options.retryable && options.refundAttempt === true;
+  const dead =
+    !options.retryable || (!refund && job.attempts >= job.max_attempts);
   const delayMs = options.delayMs ?? backoffMs(job.attempts);
 
   await query(
     `update jobs
         set status = $2, locked_at = null, last_error = $3,
-            run_at = now() + make_interval(secs => $4)
+            run_at = now() + make_interval(secs => $4),
+            attempts = attempts - $5
       where id = $1`,
-    [job.id, dead ? 'dead' : 'pending', error, dead ? 0 : delayMs / 1000],
+    [
+      job.id,
+      dead ? 'dead' : 'pending',
+      error,
+      dead ? 0 : delayMs / 1000,
+      refund ? 1 : 0,
+    ],
   );
   return dead ? 'dead' : 'pending';
 };

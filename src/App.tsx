@@ -5,6 +5,7 @@ import {
   useGetDemoInfoQuery,
   useListCallsQuery,
   useSimulateCallMutation,
+  useSimulateWeekMutation,
 } from './features/calls';
 import { AppShell } from './features/layout';
 import { createLogger } from './features/logging';
@@ -16,6 +17,8 @@ import {
   CoachDetailPage,
   CoachesPage,
   NotFoundPage,
+  OutboxPage,
+  ReportDetailPage,
   ReportsPage,
   ReviewPage,
 } from './pages';
@@ -42,6 +45,7 @@ function App() {
     { pollingInterval: LIVE_POLL_MS },
   );
   const [simulateCall, { isLoading: isSimulating }] = useSimulateCallMutation();
+  const [simulateWeek, { isLoading: isSimulatingWeek }] = useSimulateWeekMutation();
 
   const handleSimulate = async (sampleId: string | null) => {
     try {
@@ -61,13 +65,34 @@ function App() {
     }
   };
 
+  const handleSimulateWeek = async (count: number | null) => {
+    try {
+      const result = await simulateWeek(count).unwrap();
+      toast({
+        status: 'success',
+        title: `${result.count} mock calls sent for last week`,
+        description:
+          'They are summarized as the worker gets to them. Then rerun last week from Reports (or wait for Monday 7:00 CT).',
+      });
+    } catch (error) {
+      logger.error('Simulate week failed:', error);
+      toast({
+        status: 'error',
+        title: 'Simulate week failed',
+        description: getErrorMessage(error),
+      });
+    }
+  };
+
   return (
     <AppShell
       reviewCount={reviewCalls.length}
       demoInfo={demoInfo}
       isSimulating={isSimulating}
+      isSimulatingWeek={isSimulatingWeek}
       colorMode={colorMode}
       onSimulate={handleSimulate}
+      onSimulateWeek={handleSimulateWeek}
       onToggleColorMode={() => dispatch(toggleColorMode())}
     >
       <Routes>
@@ -80,6 +105,8 @@ function App() {
         <Route path='/coaches' element={<CoachesPage />} />
         <Route path='/coaches/:coachId' element={<CoachDetailPage />} />
         <Route path='/reports' element={<ReportsPage />} />
+        <Route path='/reports/:reportId' element={<ReportDetailPage />} />
+        <Route path='/outbox' element={<OutboxPage />} />
         <Route path='*' element={<NotFoundPage />} />
       </Routes>
     </AppShell>

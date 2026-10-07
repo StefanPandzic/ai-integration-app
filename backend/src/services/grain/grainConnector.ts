@@ -9,6 +9,7 @@
  * GRAIN_MODE=mock|live selects the connector.
  */
 
+import crypto from 'crypto';
 import { IncomingCall } from '../../types/pipeline';
 import { NonRetryableError } from '../queue/errors';
 import { SAMPLE_CALLS, getSampleCall } from './sampleCalls';
@@ -23,15 +24,26 @@ export interface GrainConnector {
 export const getGrainMode = (): GrainMode =>
   process.env.GRAIN_MODE === 'live' ? 'live' : 'mock';
 
-const MOCK_ID_PATTERN = /^mock-(.+)-[^-]+$/;
+// mock-<sampleId>-<unique>[.<startedAt ms, base36>]
+const MOCK_ID_PATTERN = /^mock-(.+)-[a-z0-9]+(?:\.([a-z0-9]+))?$/;
 
-export const buildMockRecordingId = (sampleId: string): string =>
-  `mock-${sampleId}-${Date.now().toString(36)}`;
+/**
+ * A mock recording ID. `startedAt` backdates the call (simulate-week);
+ * it is encoded in the ID because the connector only ever sees the ID.
+ */
+export const buildMockRecordingId = (sampleId: string, startedAt?: Date): string => {
+  const unique = `${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`;
+  return startedAt
+    ? `mock-${sampleId}-${unique}.${startedAt.getTime().toString(36)}`
+    : `mock-${sampleId}-${unique}`;
+};
 
 const createMockConnector = (): GrainConnector => ({
   mode: 'mock',
   fetchRecording: async (recordingId) => {
-    const sampleId = MOCK_ID_PATTERN.exec(recordingId)?.[1];
+    const match = MOCK_ID_PATTERN.exec(recordingId);
+    const sampleId = match?.[1];
+    const startedAtMs = match?.[2] ? parseInt(match[2], 36) : Date.now();
     const sample = sampleId ? getSampleCall(sampleId) : undefined;
     if (!sample) {
       throw new NonRetryableError(
@@ -43,7 +55,7 @@ const createMockConnector = (): GrainConnector => ({
       externalId: recordingId,
       source: 'mock',
       title: sample.title,
-      startedAt: new Date().toISOString(),
+      startedAt: new Date(startedAtMs).toISOString(),
       durationSeconds: sample.durationSeconds,
       participants: sample.participants,
       transcript: sample.transcript,

@@ -11,7 +11,8 @@
     "db:migrate": "ts-node-dev --transpile-only src/db/migrate.ts",
     "llm:check": "ts-node-dev --transpile-only src/scripts/llmCheck.ts",
     "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
-    "db:reset-calls": "ts-node-dev --transpile-only src/db/resetCalls.ts"
+    "db:reset-calls": "ts-node-dev --transpile-only src/db/resetCalls.ts",
+    "reports:check": "ts-node-dev --transpile-only src/scripts/reportsCheck.ts"
   },
   "keywords": [
     "ollama",
@@ -26,6 +27,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "zod": "^4.6.5"
   },

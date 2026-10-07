@@ -3,7 +3,7 @@ import type { LoggerConfig, LogLevel, FeatureName } from '../types';
 const isDev = import.meta.env.DEV;
 
 export const logConfig: LoggerConfig = {
-  enabledFeatures: ['calls', 'clients', 'coaches', 'app', 'api'],
+  enabledFeatures: ['calls', 'clients', 'coaches', 'reports', 'outbox', 'app', 'api'],
   logLevel: isDev ? 'debug' : 'info',
 };
 

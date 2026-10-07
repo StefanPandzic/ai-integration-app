@@ -6,6 +6,11 @@ import { JobRow, JobType } from '../../types/pipeline';
 import { getGrainConnector } from '../grain/grainConnector';
 import { NonRetryableError } from '../queue/errors';
 import { JobHandler } from '../queue/worker';
+import {
+  handleCoachReport,
+  handleManagerReport,
+  handleWeeklyReports,
+} from '../reports/runWeeklyReports';
 import { ingestCall } from './ingest';
 import { processCall } from './processCall';
 
@@ -29,4 +34,8 @@ export const JOB_HANDLERS: Record<JobType, JobHandler> = {
   },
 
   process_call: (job) => processCall(requireString(job, 'callId')),
+
+  weekly_reports: handleWeeklyReports,
+  coach_report: handleCoachReport,
+  manager_report: handleManagerReport,
 };

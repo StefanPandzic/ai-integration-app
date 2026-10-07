@@ -81,10 +81,7 @@ export const processCall = async (callId: string): Promise<void> => {
     match.client,
     match.coach,
   );
-  const { ts, dryRun } = await postMessage(message);
+  const { ts } = await postMessage(message);
   await setSlackMessageTs(call.id, ts);
-  log(
-    call.id,
-    `posted to ${message.channel}${dryRun ? ' (dry run)' : ''} ts=${ts}`,
-  );
+  log(call.id, `posted to ${message.channel} ts=${ts}`);
 };

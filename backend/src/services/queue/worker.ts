@@ -14,6 +14,11 @@ import { NonRetryableError, RetryLaterError } from './errors';
 
 export type JobHandler = (job: JobRow) => Promise<void>;
 
+export interface WorkerOptions {
+  /** Called after a job is dead-lettered (e.g. to alert ops); errors are logged */
+  onDead?: (job: JobRow, error: string) => Promise<void>;
+}
+
 const POLL_INTERVAL_MS = 1_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -21,7 +26,10 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
-export const createWorker = (handlers: Record<JobType, JobHandler>) => {
+export const createWorker = (
+  handlers: Record<JobType, JobHandler>,
+  options: WorkerOptions = {},
+) => {
   let running = false;
   let loop: Promise<void> | null = null;
 
@@ -38,18 +46,30 @@ export const createWorker = (handlers: Record<JobType, JobHandler>) => {
       const retryable = !(
         error instanceof NonRetryableError || error instanceof LLMRefusalError
       );
+      const isWaiting =
+        error instanceof RetryLaterError && !error.countsAsAttempt;
       const delayMs =
         error instanceof RetryLaterError ? error.delayMs : undefined;
       const status = await failJob(job, errorMessage(error), {
         retryable,
         delayMs,
+        refundAttempt: isWaiting,
       });
 
+      if (isWaiting) {
+        console.log(`⏳ Job ${label} waiting: ${errorMessage(error)}`);
+        return;
+      }
       console.error(
         `❌ Job ${label} failed (${status === 'dead' ? 'dead-lettered' : 'will retry'}): ${errorMessage(error)}`,
       );
-      if (status === 'dead' && job.call_id) {
-        await setCallStatus(job.call_id, 'failed');
+      if (status === 'dead') {
+        if (job.call_id) {
+          await setCallStatus(job.call_id, 'failed');
+        }
+        await options.onDead?.(job, errorMessage(error)).catch((hookError) =>
+          console.error('❌ onDead hook failed:', errorMessage(hookError)),
+        );
       }
     }
   };

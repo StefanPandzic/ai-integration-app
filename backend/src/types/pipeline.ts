@@ -68,7 +68,12 @@ export interface ClientRow {
   title_keywords: string[];
 }
 
-export type JobType = 'ingest_grain_recording' | 'process_call';
+export type JobType =
+  | 'ingest_grain_recording'
+  | 'process_call'
+  | 'weekly_reports'
+  | 'coach_report'
+  | 'manager_report';
 export type JobStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'dead';
 
 export interface JobRow {
@@ -82,4 +87,25 @@ export interface JobRow {
   max_attempts: number;
   run_at: Date;
   last_error: string | null;
+  created_at: Date;
+}
+
+export type ReportType = 'coach' | 'manager';
+export type ReportStatus = 'ready' | 'empty';
+
+/** Period dates are selected as 'YYYY-MM-DD' text (no timezone shifts) */
+export interface ReportRow {
+  id: string;
+  type: ReportType;
+  coach_id: string | null;
+  period_start: string;
+  period_end: string;
+  status: ReportStatus;
+  content: Record<string, unknown>;
+  provider: string;
+  model: string;
+  slack_message_ts: string | null;
+  drive_file_id: string | null;
+  drive_url: string | null;
+  created_at: Date;
 }

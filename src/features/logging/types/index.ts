@@ -1,6 +1,13 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export type FeatureName = 'calls' | 'clients' | 'coaches' | 'app' | 'api';
+export type FeatureName =
+  | 'calls'
+  | 'clients'
+  | 'coaches'
+  | 'reports'
+  | 'outbox'
+  | 'app'
+  | 'api';
 
 export interface ILogger {
   debug: (...args: unknown[]) => void;

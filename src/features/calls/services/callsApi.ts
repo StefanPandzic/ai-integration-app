@@ -57,6 +57,18 @@ export const callsApi = api.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Call', id: 'LIST' }, 'Client', 'Coach'],
     }),
+
+    simulateWeek: build.mutation<
+      { count: number; periodStart: string; periodEnd: string },
+      number | null
+    >({
+      query: (count) => ({
+        url: '/api/demo/simulate-week',
+        method: 'POST',
+        body: count ? { count } : {},
+      }),
+      invalidatesTags: [{ type: 'Call', id: 'LIST' }, 'Client', 'Coach'],
+    }),
   }),
 });
 
@@ -66,4 +78,5 @@ export const {
   useAssignCallMutation,
   useGetDemoInfoQuery,
   useSimulateCallMutation,
+  useSimulateWeekMutation,
 } = callsApi;

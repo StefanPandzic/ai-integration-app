@@ -106,6 +106,8 @@ export interface CallDetail {
   client: NamedRef | null;
   coach: NamedRef | null;
   job: JobSnapshot | null;
+  /** Mock outbox entry of the posted Slack message */
+  outbox: { slack: string | null };
 }
 
 export interface SampleCall {
@@ -116,7 +118,8 @@ export interface SampleCall {
 
 export interface DemoInfo {
   grainMode: 'mock' | 'live';
-  slackDryRun: boolean;
+  slackMode: 'mock' | 'live';
+  driveMode: 'mock' | 'live';
   samples: SampleCall[];
 }
 

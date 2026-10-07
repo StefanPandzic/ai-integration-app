@@ -4,6 +4,7 @@
 
 import type { CallListItem } from '../../calls';
 import type { ClientListItem } from '../../clients';
+import type { CoachReportSummary, CoachReportTrendPoint } from '../../reports';
 
 export interface CoachListItem {
   id: string;
@@ -18,4 +19,7 @@ export interface CoachDetail {
   coach: CoachListItem;
   clients: ClientListItem[];
   calls: CallListItem[];
+  latestReport: CoachReportSummary | null;
+  /** Recent weekly reports, oldest first */
+  reportTrend: CoachReportTrendPoint[];
 }

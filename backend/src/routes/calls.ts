@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { getCall, getSummary, listCalls } from '../db/callsRepo';
 import { getClient, getCoach } from '../db/directoryRepo';
 import { getLatestJobForCall } from '../db/jobsRepo';
+import { findOutboxIdByExternalId } from '../db/outboxRepo';
 import {
   AssignError,
   assignCall,
@@ -74,11 +75,12 @@ callsRouter.get(
       res.status(404).json({ error: 'Call not found' });
       return;
     }
-    const [summary, client, coach, job] = await Promise.all([
+    const [summary, client, coach, job, slackOutboxId] = await Promise.all([
       getSummary(call.id),
       call.client_id ? getClient(call.client_id) : null,
       call.coach_id ? getCoach(call.coach_id) : null,
       getLatestJobForCall(call.id),
+      findOutboxIdByExternalId('slack', call.slack_message_ts),
     ]);
     res.json({
       call,
@@ -86,6 +88,7 @@ callsRouter.get(
       client: client && { id: client.id, name: client.name },
       coach: coach && { id: coach.id, name: coach.name },
       job,
+      outbox: { slack: slackOutboxId },
     });
   }),
 );

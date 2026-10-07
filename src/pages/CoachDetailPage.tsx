@@ -2,7 +2,6 @@ import { Button, Grid, SimpleGrid, VStack } from '@chakra-ui/react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   BackLink,
-  EmptyState,
   PageHeader,
   Panel,
   QueryState,
@@ -11,6 +10,7 @@ import {
 import { CallsTable } from '../features/calls';
 import { ClientsTable } from '../features/clients';
 import { useGetCoachQuery } from '../features/coaches';
+import { CoachReportPanel } from '../features/reports';
 import { LIVE_POLL_MS } from '../store/api';
 
 export const CoachDetailPage = () => {
@@ -46,12 +46,11 @@ export const CoachDetailPage = () => {
                 />
               </Panel>
 
-              <Panel title='Weekly report'>
-                <EmptyState
-                  title='No reports yet'
-                  description='Weekly coach reports (client progress, coaching rating and improvements) are generated from call summaries every Monday.'
-                />
-              </Panel>
+              <CoachReportPanel
+                latest={data.latestReport}
+                trend={data.reportTrend}
+                onOpenReport={(id) => navigate(`/reports/${id}`)}
+              />
             </Grid>
 
             <Panel

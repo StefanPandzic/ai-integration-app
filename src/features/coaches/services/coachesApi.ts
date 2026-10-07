@@ -16,7 +16,7 @@ export const coachesApi = api.injectEndpoints({
 
     getCoach: build.query<CoachDetail, string>({
       query: (id) => `/api/coaches/${id}`,
-      providesTags: ['Coach', 'Client', { type: 'Call', id: 'LIST' }],
+      providesTags: ['Coach', 'Client', 'Report', { type: 'Call', id: 'LIST' }],
     }),
   }),
 });

@@ -4,11 +4,8 @@
 
 import { CallSummary } from '../../schemas/callSummary';
 import { CallRow, ClientRow, CoachRow } from '../../types/pipeline';
+import { HEADER_MAX, bullets, clip, escape, section } from './blockKit';
 import { SlackMessage } from './slackClient';
-
-// Block Kit limits
-const HEADER_MAX = 150;
-const SECTION_MAX = 3000;
 
 const SENTIMENT_EMOJI: Record<CallSummary['client_sentiment'], string> = {
   positive: ':large_green_circle:',
@@ -16,21 +13,6 @@ const SENTIMENT_EMOJI: Record<CallSummary['client_sentiment'], string> = {
   mixed: ':large_yellow_circle:',
   negative: ':red_circle:',
 };
-
-/** Escape mrkdwn control characters in model-generated text */
-const escape = (text: string): string =>
-  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-const clip = (text: string, max: number): string =>
-  text.length <= max ? text : `${text.slice(0, max - 1)}…`;
-
-const section = (text: string) => ({
-  type: 'section',
-  text: { type: 'mrkdwn', text: clip(text, SECTION_MAX) },
-});
-
-const bullets = (items: string[]): string =>
-  items.map((item) => `• ${escape(item)}`).join('\n');
 
 export const buildSummaryMessage = (
   call: CallRow,

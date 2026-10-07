@@ -13,11 +13,16 @@ export class NonRetryableError extends Error {
   }
 }
 
-/** Retry after a specific delay (e.g. a Retry-After header) */
+/**
+ * Retry after a specific delay (e.g. a Retry-After header). With
+ * `countsAsAttempt: false` the job is only waiting (e.g. for other jobs to
+ * finish) and the attempt is not used up.
+ */
 export class RetryLaterError extends Error {
   constructor(
     message: string,
     public readonly delayMs: number,
+    public readonly countsAsAttempt = true,
   ) {
     super(message);
     this.name = 'RetryLaterError';

@@ -7,9 +7,13 @@ import { getProvider } from './services/llm';
 import { callsRouter } from './routes/calls';
 import { demoRouter } from './routes/demo';
 import { directoryRouter } from './routes/directory';
+import { outboxRouter } from './routes/outbox';
+import { reportsRouter } from './routes/reports';
 import { RawBodyRequest, webhooksRouter } from './routes/webhooks';
+import { notifyDeadJob } from './services/alerts/opsAlerts';
 import { JOB_HANDLERS } from './services/pipeline/jobHandlers';
 import { createWorker } from './services/queue/worker';
+import { startReportScheduler } from './services/reports/scheduler';
 
 dotenv.config();
 
@@ -34,11 +38,13 @@ app.use(
   }),
 );
 
-// Call pipeline
+// Call pipeline, weekly reports and the mock integration outbox
 app.use('/webhooks', webhooksRouter);
 app.use('/api', callsRouter);
 app.use('/api', directoryRouter);
 app.use('/api', demoRouter);
+app.use('/api', reportsRouter);
+app.use('/api', outboxRouter);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
@@ -79,8 +85,9 @@ app.listen(PORT, () => {
   );
 
   if (isDatabaseConfigured()) {
-    createWorker(JOB_HANDLERS).start();
+    createWorker(JOB_HANDLERS, { onDead: notifyDeadJob }).start();
+    void startReportScheduler();
   } else {
-    console.warn('⚠️ DATABASE_URL not set: call pipeline worker disabled');
+    console.warn('⚠️ DATABASE_URL not set: call pipeline worker and report scheduler disabled');
   }
 });

@@ -47,6 +47,7 @@ export const CallDetailPage = () => {
             onAssign={(clientId) => assignCall(data.call.id, clientId)}
             onOpenClient={(id) => navigate(`/clients/${id}`)}
             onOpenCoach={(id) => navigate(`/coaches/${id}`)}
+            onOpenOutboxItem={(id) => navigate(`/outbox?tab=slack&item=${id}`)}
           />
         )}
       </QueryState>
