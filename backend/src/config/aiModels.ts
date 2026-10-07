@@ -24,28 +24,27 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
 ];
 
 // Structured-output LLM provider settings (call summaries, reports)
-export type LLMProviderName = 'claude' | 'ollama';
-export type ClaudeEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type LLMProviderName = 'gemini' | 'ollama';
 
 export interface LLMSettings {
   primary: LLMProviderName;
   fallback: LLMProviderName | null;
   ollamaModel: string;
-  claudeModel: string;
-  claudeEffort: ClaudeEffort;
+  geminiModel: string;
   maxTokens: number;
-  /** Client-side cap below the account's Claude rate limit */
-  claudeRequestsPerMinute: number;
+  /** Client-side cap below the API key's Gemini rate limit */
+  geminiRequestsPerMinute: number;
 }
 
 export const LLM_SETTINGS: LLMSettings = {
-  // deepseek-r1 only for now. Target setup once ANTHROPIC_API_KEY is
-  // configured: primary 'claude', fallback 'ollama' (deepseek-r1)
-  primary: 'ollama',
-  fallback: null,
+  // Gemini with an Ollama fallback once GEMINI_API_KEY is set; Ollama
+  // (deepseek-r1) alone until then
+  primary: process.env.GEMINI_API_KEY ? 'gemini' : 'ollama',
+  fallback: process.env.GEMINI_API_KEY ? 'ollama' : null,
   ollamaModel: 'deepseek-r1',
-  claudeModel: 'claude-opus-5-5',
-  claudeEffort: 'medium',
+  // Free-tier model (aistudio.google.com lists the current ones)
+  geminiModel: 'gemini-3.5-flash',
   maxTokens: 16000,
-  claudeRequestsPerMinute: 50,
+  // Free tier allows ~10 requests/min for Flash; raise on a paid key
+  geminiRequestsPerMinute: 8,
 };

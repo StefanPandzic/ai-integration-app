@@ -17,13 +17,13 @@ cd backend && npm run reports:check -- <coachId> [YYYY-MM-DD]  # print a coach r
 cd backend && npm run eval        # score summaries of the 5 samples (`-- ollama`, `-- --json out.json`); exit 1 on failure
 ```
 
-No test framework yet; `npm run eval` is the LLM quality check. Until `ANTHROPIC_API_KEY` is set, summaries use local Ollama (`deepseek-r1`) — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
+No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_API_KEY` is set, summaries use local Ollama (`deepseek-r1`); with it, Gemini is primary and Ollama the fallback — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
 
 ## Layout
 
-- `backend/src/services/llm/` — `generateStructured()`: Claude (structured outputs) with Ollama fallback; all output zod-validated. Schemas in `backend/src/schemas/`
+- `backend/src/services/llm/` — `generateStructured()`: Gemini (`@google/genai`, structured outputs) with Ollama fallback; all output zod-validated. Schemas in `backend/src/schemas/`
 - `backend/src/db/` — `pg` pool, migration runner, seed, and `*Repo.ts` query modules; SQL in `backend/db/migrations/`
-- `backend/src/services/pipeline/` — call pipeline: `ingest.ts` (entry points) → jobs → `processCall.ts` (match → summarize → Slack → Drive, each step resumable); `reconcile.ts` (nightly `reconcile_grain`); `demoFaults.ts`. Siblings: `queue/` is the Postgres job worker (backoff, dead-letter, per-job log context); `grain/` the connector (`GRAIN_MODE=mock` sample calls, `mockGrain.ts` recording memory + drop-webhook switch) and webhook signature; `slack/` the Block Kit builders and connector; `rateLimit.ts` token buckets (Claude, Slack)
+- `backend/src/services/pipeline/` — call pipeline: `ingest.ts` (entry points) → jobs → `processCall.ts` (match → summarize → Slack → Drive, each step resumable); `reconcile.ts` (nightly `reconcile_grain`); `demoFaults.ts`. Siblings: `queue/` is the Postgres job worker (backoff, dead-letter, per-job log context); `grain/` the connector (`GRAIN_MODE=mock` sample calls, `mockGrain.ts` recording memory + drop-webhook switch) and webhook signature; `slack/` the Block Kit builders and connector; `rateLimit.ts` token buckets (Gemini, Slack)
 - `backend/src/services/scheduler/` — crons (`REPORTS_CRON`, `RECONCILE_CRON`) with startup catch-up
 - `backend/src/services/reports/` — weekly reports: `runWeeklyReports.ts` (jobs `weekly_reports` → `coach_report` × N → `manager_report`, delivery), `coachReport.ts`/`managerReport.ts` (LLM writes, code counts; refs checked in `grounding.ts`). Rubric in `backend/src/schemas/coachReport.ts`
 - `backend/src/services/drive/`, `services/slack/`, `services/alerts/` — `DriveConnector`/`SlackConnector` (`*_MODE=mock` → `integration_outbox`), ops alerts (every dead job, review calls, partial runs, recovered recordings; keyed)

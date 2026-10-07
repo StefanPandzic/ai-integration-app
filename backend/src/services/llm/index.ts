@@ -2,14 +2,14 @@
  * LLM Service
  *
  * Entry point for structured generation. Calls the primary provider
- * (Claude) and falls back to the secondary (Ollama) on infrastructure
+ * (Gemini) and falls back to the secondary (Ollama) on infrastructure
  * failures. Refusals are never routed to another provider.
  */
 
 import { z } from 'zod';
 import { LLM_SETTINGS, LLMProviderName } from '../../config/aiModels';
 import { createLogger } from '../../lib/logger';
-import { createClaudeProvider } from './claudeProvider';
+import { createGeminiProvider } from './geminiProvider';
 import { createOllamaProvider } from './ollamaProvider';
 import {
   LLMProvider,
@@ -23,7 +23,7 @@ export * from './types';
 const log = createLogger('llm');
 
 const providers: Record<LLMProviderName, LLMProvider> = {
-  claude: createClaudeProvider(),
+  gemini: createGeminiProvider(),
   ollama: createOllamaProvider(),
 };
 

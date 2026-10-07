@@ -40,15 +40,15 @@ Every entry point stores work and returns right away. The Postgres job worker do
 | Jobs | `services/pipeline/jobHandlers.ts`, `services/queue/worker.ts`, `db/jobsRepo.ts` | One job at a time, `FOR UPDATE SKIP LOCKED`, exponential backoff with jitter, dead-letter. `RetryLaterError(…, countsAsAttempt=false)` waits without using up attempts; `onDead` hook raises ops alerts |
 | Pipeline | `services/pipeline/processCall.ts`, `matching.ts`, `summarizeCall.ts`, `reconcile.ts`, `demoFaults.ts` | Match → summarize → Slack → Drive. Each step is persisted and skipped when done, so a retry resumes where it stopped. `reconcile_grain` re-feeds Grain's recent recordings through the idempotent ingest |
 | Scheduler | `services/scheduler/` | node-cron in America/Chicago: weekly reports (`REPORTS_CRON`) and reconcile (`RECONCILE_CRON`), each with a startup catch-up |
-| Rate limits | `services/rateLimit.ts` | In-process token buckets: Claude (`LLM_SETTINGS.claudeRequestsPerMinute`), Slack (1 msg/s per channel). Long waits become `RetryLaterError` so the worker isn't blocked |
+| Rate limits | `services/rateLimit.ts` | In-process token buckets: Gemini (`LLM_SETTINGS.geminiRequestsPerMinute`), Slack (1 msg/s per channel). Long waits become `RetryLaterError` so the worker isn't blocked |
 | Logging | `lib/logger.ts` | `createLogger(scope)`; the worker wraps each job in `withLogContext({ jobId, callId, runId })` so every line carries them. `LOG_FORMAT=json` for one object per line |
 | Reports | `services/reports/` | `coachReport.ts`, `managerReport.ts` (generation + grounding checks), `runWeeklyReports.ts` (fan-out, gate, delivery), `renderReport.ts` (Drive HTML), `grounding.ts` (refs, checked generation, talk share) |
-| LLM | `services/llm/` | `generateStructured()`: Claude (structured outputs) with an Ollama fallback; zod-validated, one repair retry |
+| LLM | `services/llm/` | `generateStructured()`: Gemini (structured outputs) with an Ollama fallback; zod-validated, one repair retry |
 | Grain | `services/grain/` | Connector: `fetchRecording`, `listRecordings(since)`. `GRAIN_MODE=mock` serves `sampleCalls.ts` (mock IDs can carry a backdated `startedAt`); `mockGrain.ts` records every simulated recording in `mock_grain_recordings` and can drop its webhook (demo). Webhook signature check |
 | Slack | `services/slack/` | `SlackConnector` (`SLACK_MODE=mock` writes to the outbox; `live` posts and honors `Retry-After`), Block Kit builders for summaries, reports and ops alerts |
 | Drive | `services/drive/driveConnector.ts`, `renderCall.ts` | `DriveConnector.saveDocument(folder, title, html, key)`; mock only (`DRIVE_MODE=mock`), idempotent per key. Call summaries go to `Calls/<Client>/<YYYY-MM>` |
 | Alerts | `services/alerts/opsAlerts.ts` | Ops channel alerts (`SLACK_OPS_CHANNEL_ID`), each with an idempotency key: every dead job, review-queue calls, partial report runs, recovered recordings |
-| Config | `config/aiModels.ts`, `config/integrations.ts` | LLM settings and the Claude rate limit; connector modes, channels, dashboard URL, crons, Slack rate limit |
+| Config | `config/aiModels.ts`, `config/integrations.ts` | LLM settings and the Gemini rate limit; connector modes, channels, dashboard URL, crons, Slack rate limit |
 | Data | `db/*Repo.ts`, `db/migrations/*.sql` | `coaches`, `clients`, `calls`, `call_summaries`, `reports`, `jobs`, `integration_outbox`, `mock_grain_recordings` |
 
 ### Call statuses

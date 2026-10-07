@@ -12,7 +12,7 @@ nightly reconcile (2:00 CT) ────────────┼─▶ job: f
   lists Grain, re-sends missed ones     │                                 │
                                                                           ▼
                      job: process_call ─▶ match client/coach ─▶ LLM summary ─▶ Slack (client channel) ─▶ Drive archive
-                                               │                (Claude, zod-validated,
+                                               │                (Gemini, zod-validated,
                                                ▼                 owners must be participants)
                                         no match → review queue + ops alert
 
@@ -29,14 +29,14 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Build history and sco
 
 ## Setup
 
-Requirements: Node 20+, Postgres 15+ (local or Supabase), and either an Anthropic API key or [Ollama](OLLAMA_SETUP.md) with `deepseek-r1`.
+Requirements: Node 20+, Postgres 15+ (local or Supabase), and either a Google Gemini API key (free at aistudio.google.com/apikey) or [Ollama](OLLAMA_SETUP.md) with `deepseek-r1`.
 
 ```bash
 # 1. Install
 npm install
 cd backend && npm install
 
-# 2. Configure (backend/.env): DATABASE_URL, and ANTHROPIC_API_KEY if you use Claude
+# 2. Configure (backend/.env): DATABASE_URL, and GEMINI_API_KEY if you use Gemini
 cp .env.example .env            # in backend/
 cp .env.example .env            # in the repo root (VITE_BACKEND_URL)
 
@@ -49,7 +49,7 @@ cd backend && npm run dev       # API, job worker and schedulers on :3001
 npm run dev                     # dashboard on :5173
 ```
 
-The LLM provider is set in `backend/src/config/aiModels.ts`. It defaults to local Ollama until an `ANTHROPIC_API_KEY` is configured; after that the target setup is Claude with an Ollama fallback. `npm run llm:check` (in `backend/`) checks that the provider works.
+The LLM provider is set in `backend/src/config/aiModels.ts`. It uses local Ollama until `GEMINI_API_KEY` is set; then Gemini is primary with an Ollama fallback. `npm run llm:check` (in `backend/`) checks that the provider works.
 
 ## 5-minute demo
 
@@ -97,7 +97,7 @@ backend/src/
     scheduler/      report and reconcile crons with startup catch-up
     grain/ slack/ drive/   connectors (mock + live interface)
     alerts/         ops alerts
-    llm/            Claude / Ollama structured generation
+    llm/            Gemini / Ollama structured generation
   db/               pg pool, migrations runner, repositories
   lib/logger.ts     structured logger with per-job context
 src/                React dashboard (Vite, Chakra UI, Redux Toolkit + RTK Query)
