@@ -2,6 +2,7 @@ import { Box, HStack, Link, Text, VStack } from '@chakra-ui/react';
 import { useEffect, useRef } from 'react';
 import { EmptyState } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
+import type { SlackChannelOptions } from '../../slack';
 import type {
   AssignableClient,
   AssignableCoach,
@@ -15,6 +16,7 @@ interface ReviewQueueListProps {
   calls: CallListItem[];
   clients: AssignableClient[];
   coaches: AssignableCoach[];
+  slackChannels: SlackChannelOptions;
   assigningCallId: string | null;
   /** Scrolled into view and highlighted (ops alert link: /review?call=) */
   highlightCallId?: string | null;
@@ -27,6 +29,7 @@ export const ReviewQueueList = ({
   calls,
   clients,
   coaches,
+  slackChannels,
   assigningCallId,
   highlightCallId = null,
   onAssign,
@@ -81,6 +84,7 @@ export const ReviewQueueList = ({
               <ReviewAssign
                 clients={clients}
                 coaches={coaches}
+                slackChannels={slackChannels}
                 participants={call.participants}
                 isAssigning={assigningCallId === call.id}
                 onAssign={(target) => onAssign(call.id, target)}

@@ -11,6 +11,7 @@ import { directoryRouter } from './routes/directory';
 import { outboxRouter } from './routes/outbox';
 import { getPipelineHealth, pipelineRouter } from './routes/pipeline';
 import { reportsRouter } from './routes/reports';
+import { slackRouter } from './routes/slack';
 import { RawBodyRequest, webhooksRouter } from './routes/webhooks';
 import { notifyDeadJob } from './services/alerts/opsAlerts';
 import { JOB_HANDLERS } from './services/pipeline/jobHandlers';
@@ -49,6 +50,7 @@ app.use('/api', demoRouter);
 app.use('/api', reportsRouter);
 app.use('/api', outboxRouter);
 app.use('/api', pipelineRouter);
+app.use('/api', slackRouter);
 
 /**
  * Health check for uptime monitors: 503 when the database is configured

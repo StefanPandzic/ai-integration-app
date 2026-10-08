@@ -160,6 +160,8 @@ export interface NewClientInput {
   name: string;
   email: string | null;
   coachId: string;
+  /** null: the default client channel */
+  slackChannelId: string | null;
 }
 
 /** An existing client, or one created with the assignment */

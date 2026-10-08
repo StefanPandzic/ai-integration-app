@@ -82,8 +82,12 @@ nightly 02:00 CT: listRecordings(last 48h) → enqueue any id we don't have
   | `chat:write.public` | Post to public client channels without joining each one |
   | `im:write` | Open DMs to coaches for their weekly report |
   | `users:read`, `users:read.email` | Resolve a coach's Slack user ID from their email (`users.lookupByEmail`), so `coaches.slack_user_id` can fill itself |
+  | `channels:read`, `groups:read` | List channels for the client channel picker (`conversations.list`) and check a channel before saving it (`conversations.info`). Without `groups:read`, only public channels are listed |
+  | `channels:join` | Have the bot join a public client channel by itself when the channel is chosen (`conversations.join`) |
 
-  **Private client channels** need the bot invited once (`/invite @Coaching Bot`). Otherwise posting fails with `not_in_channel`, which is non-retryable and raises an alert telling ops to invite the bot.
+  After adding scopes, reinstall the app to the workspace.
+
+  **Picking a client's channel:** in the review queue ("+ New client…") or on the client page ("Change"), choose a channel from the list or paste its ID. The backend checks the channel before saving. **Public channels:** the bot joins on save. **Private channels:** Slack won't let a bot join by itself, so someone runs `/invite @Coaching Bot` in the channel first, then clicks Refresh. Until then, the backend rejects the ID as not found. If a channel later stops working, posting fails with `not_in_channel`, which is non-retryable and raises an alert telling ops to invite the bot.
 - **Calls:**
   - `chat.postMessage` (already implemented in today's `slackClient.ts`; it becomes the live `SlackConnector`).
   - `conversations.open` for coach DMs.
@@ -91,7 +95,7 @@ nightly 02:00 CT: listRecordings(last 48h) → enqueue any id we don't have
 - **Idempotency:** unchanged. A stored `slack_message_ts` on the call or report means the message is never posted again. A crash between Slack accepting the post and our DB write could, in rare cases, cause one duplicate. That's acceptable at this volume. To close the gap, set `metadata.event_payload.call_id` on each message and check recent channel history before posting again.
 - **Rate limits:** `chat.postMessage` allows about one message per second per channel, with short bursts. `slackClient.ts` already honors `429 Retry-After`, sleeping in-process for short waits and handing longer ones back to the queue. 50+ calls a week is far below the limit; the Monday report burst of about 10 messages is also fine.
 - **Limits to respect:** 50 blocks per message, 3000 characters per section, 150 per header. `summaryBlocks.ts` already clips. Long reports link to the Drive document instead of inlining everything.
-- **Channel mapping:** `clients.slack_channel_id` holds the channel ID (not the name, since names change). For onboarding, an admin script can look up channel IDs by name with `conversations.list` (this needs `channels:read`).
+- **Channel mapping:** `clients.slack_channel_id` holds the channel ID (not the name, since names change). The channel picker (`GET /api/slack/channels`, `services/slack/slackChannels.ts`) shows names and saves IDs.
 
 **Cost:** posting with a bot works on Slack's **free plan**, which limits message history and the number of installed apps. A free test workspace is enough to try this before using the business workspace.
 

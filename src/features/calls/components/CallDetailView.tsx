@@ -19,6 +19,7 @@ import {
 import type { ReactNode } from 'react';
 import { Panel } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
+import type { SlackChannelOptions } from '../../slack';
 import type { AssignableClient, AssignableCoach, AssignTarget, CallDetail } from '../types';
 import { callDate, formatDateTime, formatDuration } from '../utils/format';
 import { CallStatusBadge } from './CallBadges';
@@ -30,6 +31,7 @@ interface CallDetailViewProps {
   detail: CallDetail;
   clients: AssignableClient[];
   coaches: AssignableCoach[];
+  slackChannels: SlackChannelOptions;
   isAssigning: boolean;
   isRetrying: boolean;
   onAssign: (target: AssignTarget) => void;
@@ -58,6 +60,7 @@ export const CallDetailView = ({
   detail,
   clients,
   coaches,
+  slackChannels,
   isAssigning,
   isRetrying,
   onAssign,
@@ -104,6 +107,7 @@ export const CallDetailView = ({
                 <ReviewAssign
                   clients={clients}
                   coaches={coaches}
+                  slackChannels={slackChannels}
                   participants={call.participants}
                   isAssigning={isAssigning}
                   onAssign={onAssign}

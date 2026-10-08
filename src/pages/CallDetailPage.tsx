@@ -11,6 +11,7 @@ import {
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
 import { useListCoachesQuery } from '../features/coaches';
+import { useSlackChannels } from '../features/slack';
 import { useRetryJob } from '../features/pipeline';
 
 export const CallDetailPage = () => {
@@ -20,6 +21,7 @@ export const CallDetailPage = () => {
   const { data, isLoading, error } = useCallDetail(callId);
   const { data: clients = [] } = useListClientsQuery();
   const { data: coaches = [] } = useListCoachesQuery();
+  const slackChannels = useSlackChannels();
   const { assignCall, assigningCallId } = useAssignCall();
   const { retryJob, retryingJobId } = useRetryJob();
 
@@ -48,6 +50,7 @@ export const CallDetailPage = () => {
             detail={data}
             clients={clients}
             coaches={coaches}
+            slackChannels={slackChannels}
             isAssigning={assigningCallId === data.call.id}
             isRetrying={retryingJobId !== null && retryingJobId === data.job?.id}
             onAssign={(target) => assignCall(data.call.id, target)}

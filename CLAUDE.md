@@ -29,10 +29,10 @@ No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_AP
 - `backend/src/services/reports/` — weekly reports: `runWeeklyReports.ts` (jobs `weekly_reports` → `coach_report` × N → `manager_report`, delivery), `coachReport.ts`/`managerReport.ts` (LLM writes, code counts; refs checked in `grounding.ts`). Rubric in `backend/src/schemas/coachReport.ts`
 - `backend/src/services/drive/`, `services/slack/`, `services/alerts/` — `DriveConnector`/`SlackConnector` (`*_MODE=mock` → `integration_outbox`; live Drive = `driveAuth.ts` + `driveApi.ts`), ops alerts (every dead job, review calls, partial runs, recovered recordings; keyed)
 - `backend/src/lib/logger.ts` — `createLogger(scope)`, `withLogContext({ jobId, callId, runId })`; `LOG_FORMAT=pretty|json`
-- `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`, read-only), `reports.ts` (`/api/reports`), `outbox.ts` (`/api/outbox`), `pipeline.ts` (`/api/pipeline/*`, `/api/jobs`, retry), `demo.ts` (`/api/demo/*`)
+- `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`; only a client's Slack channel is editable), `slack.ts` (`/api/slack/channels`, picker; checks/joins in `services/slack/slackChannels.ts`), `reports.ts` (`/api/reports`), `outbox.ts` (`/api/outbox`), `pipeline.ts` (`/api/pipeline/*`, `/api/jobs`, retry), `demo.ts` (`/api/demo/*`)
 - `backend/src/config/aiModels.ts` — LLM provider settings and Ollama model metadata; `config/integrations.ts` — connector modes, channels, crons, Slack rate limit
 - `src/pages/` — one component per route; `App.tsx` holds the routes and wires `AppShell`
-- `src/features/{calls,clients,coaches,reports,outbox,pipeline,layout,logging}/` — `components/ hooks/ services/ types/ index.ts`
+- `src/features/{calls,clients,coaches,reports,outbox,pipeline,slack,layout,logging}/` — `components/ hooks/ services/ types/ index.ts`
 - `src/components/` — shared presentational primitives (`Panel`, `PageHeader`, `StatCard`, `QueryState`…)
 - `src/store/` — `api.ts` (RTK Query base), `slices/appSlice.ts` (color mode, persisted)
 

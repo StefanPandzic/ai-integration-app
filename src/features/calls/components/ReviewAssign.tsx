@@ -1,10 +1,13 @@
 import { Button, HStack, Input, Select, VStack } from '@chakra-ui/react';
 import { useState } from 'react';
+import { SlackChannelSelect, isSlackChannelId, type SlackChannelOptions } from '../../slack';
 import type { AssignableClient, AssignableCoach, AssignTarget, Participant } from '../types';
 
 interface ReviewAssignProps {
   clients: AssignableClient[];
   coaches: AssignableCoach[];
+  /** Channel picker for a new client */
+  slackChannels: SlackChannelOptions;
   /** Call participants; prefill the new-client form */
   participants: Participant[];
   isAssigning: boolean;
@@ -33,6 +36,7 @@ const suggestNewClient = (
     name: guest?.name ?? '',
     email: guest?.email ?? '',
     coachId: (coachOnCall ?? coaches[0])?.id ?? '',
+    slackChannelId: '',
   };
 };
 
@@ -40,12 +44,13 @@ const suggestNewClient = (
 export const ReviewAssign = ({
   clients,
   coaches,
+  slackChannels,
   participants,
   isAssigning,
   onAssign,
 }: ReviewAssignProps) => {
   const [clientId, setClientId] = useState('');
-  const [draft, setDraft] = useState({ name: '', email: '', coachId: '' });
+  const [draft, setDraft] = useState({ name: '', email: '', coachId: '', slackChannelId: '' });
   const isNew = clientId === NEW_CLIENT;
 
   const selectClient = (value: string) => {
@@ -53,7 +58,11 @@ export const ReviewAssign = ({
     if (value === NEW_CLIENT) setDraft(suggestNewClient(participants, clients, coaches));
   };
 
-  const canAssign = isNew ? !!draft.name.trim() && !!draft.coachId : !!clientId;
+  const canAssign = isNew
+    ? !!draft.name.trim() &&
+      !!draft.coachId &&
+      (!draft.slackChannelId || isSlackChannelId(draft.slackChannelId))
+    : !!clientId;
 
   const assign = () =>
     onAssign(
@@ -63,6 +72,7 @@ export const ReviewAssign = ({
               name: draft.name.trim(),
               email: draft.email.trim() || null,
               coachId: draft.coachId,
+              slackChannelId: draft.slackChannelId || null,
             },
           }
         : { clientId },
@@ -128,6 +138,12 @@ export const ReviewAssign = ({
               </option>
             ))}
           </Select>
+          <SlackChannelSelect
+            options={slackChannels}
+            value={draft.slackChannelId}
+            onChange={(slackChannelId) => setDraft({ ...draft, slackChannelId })}
+            allowDefault
+          />
         </>
       )}
     </VStack>

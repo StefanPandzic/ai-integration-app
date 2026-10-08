@@ -90,9 +90,11 @@ Detailed design: [PHASE3_PLAN.md](PHASE3_PLAN.md).
 | GET | `/api/calls?status=&clientId=&coachId=&limit=&offset=` | List with client/coach names, summary sentiment, action-item count and latest job state |
 | GET | `/api/calls/:id` | `{ call, summary, client, coach, job, outbox: { slack, drive } }` |
 | POST | `/api/calls` | Ingest a call from another source (`source: 'browser'`) |
-| POST | `/api/calls/:id/assign` | Resolve a review-queue (or failed) call: `{ clientId }`, or `{ newClient: { name, email, coachId } }` to create the client too (default Slack channel; its email matches future calls) |
+| POST | `/api/calls/:id/assign` | Resolve a review-queue (or failed) call: `{ clientId }`, or `{ newClient: { name, email, coachId, slackChannelId? } }` to create the client too (its email matches future calls). The channel is checked first and the bot joins it if public; when it is omitted, the default Slack channel is used |
 | GET | `/api/clients?coachId=` | Clients with call count, last call date and latest sentiment |
 | GET | `/api/clients/:id` | `{ client, calls, summaries }` (summaries newest first) |
+| PATCH | `/api/clients/:id/slack-channel` | `{ slackChannelId }`: checks the channel (the bot joins it if public), then saves it; returns `{ channel }` |
+| GET | `/api/slack/channels?refresh=1` | `{ mode, channels: [{ id, name, is_private, is_member }] }` for the channel picker; cached 5 minutes unless `refresh=1`; mock mode returns fake channels |
 | GET | `/api/coaches` | Coaches with client count, calls total and calls in the last 7 days |
 | GET | `/api/coaches/:id` | `{ coach, clients, calls, latestReport, reportTrend }` |
 | GET | `/api/reports?type=&coachId=&periodStart=` | Report list, newest week first (no content) |
@@ -112,7 +114,7 @@ Detailed design: [PHASE3_PLAN.md](PHASE3_PLAN.md).
 | POST | `/webhooks/grain` | Signature check, then enqueue, then 200. Duplicates are acknowledged and ignored |
 | GET | `/health` | DB state, queue depth, oldest ready job, last reconcile and report run, next runs; 503 when the DB is unreachable |
 
-Coaches and clients are read-only and come from `npm run db:seed`.
+Coaches and clients come from `npm run db:seed`; clients are also added from the review queue. Only a client's Slack channel can be edited.
 
 ## Frontend (`src/`)
 

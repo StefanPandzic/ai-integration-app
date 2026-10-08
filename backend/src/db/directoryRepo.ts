@@ -60,6 +60,17 @@ export const insertClient = async ({
     )
   )[0];
 
+export const updateClientChannel = async (
+  id: string,
+  slackChannelId: string,
+): Promise<ClientRow | null> =>
+  (
+    await query<ClientRow>(
+      'update clients set slack_channel_id = $2 where id = $1 returning *',
+      [id, slackChannelId],
+    )
+  )[0] ?? null;
+
 export interface ClientListItem {
   id: string;
   name: string;

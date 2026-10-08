@@ -3,7 +3,13 @@ import { useAppColors } from '../constants/colors';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BackLink, PageHeader, Panel, QueryState, StatCard } from '../components';
 import { CallsTable, SentimentBadge, formatDate } from '../features/calls';
-import { ClientInsights, useGetClientQuery } from '../features/clients';
+import {
+  ClientChannelCard,
+  ClientInsights,
+  useGetClientQuery,
+  useUpdateClientChannel,
+} from '../features/clients';
+import { useSlackChannels } from '../features/slack';
 import { LIVE_POLL_MS } from '../store/api';
 
 export const ClientDetailPage = () => {
@@ -14,6 +20,8 @@ export const ClientDetailPage = () => {
     pollingInterval: LIVE_POLL_MS,
   });
   const client = data?.client;
+  const slackChannels = useSlackChannels();
+  const { updateChannel, isUpdatingChannel } = useUpdateClientChannel();
 
   return (
     <>
@@ -46,7 +54,12 @@ export const ClientDetailPage = () => {
                 label='Latest sentiment'
                 value={client.latest_sentiment ? <SentimentBadge sentiment={client.latest_sentiment} /> : '—'}
               />
-              <StatCard label='Slack channel' value={client.slack_channel_id} />
+              <ClientChannelCard
+                channelId={client.slack_channel_id}
+                slackChannels={slackChannels}
+                isSaving={isUpdatingChannel}
+                onSave={(channelId) => updateChannel(client.id, channelId)}
+              />
             </SimpleGrid>
 
             <ClientInsights summaries={data.summaries} />

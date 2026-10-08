@@ -1,8 +1,9 @@
 /**
- * Clients API (RTK Query endpoints for /api/clients; read-only)
+ * Clients API (RTK Query endpoints for /api/clients)
  */
 
 import { api } from '../../../store/api';
+import type { SlackChannel } from '../../slack';
 import type { ClientDetail, ClientListItem } from '../types';
 
 export const clientsApi = api.injectEndpoints({
@@ -18,7 +19,21 @@ export const clientsApi = api.injectEndpoints({
       query: (id) => `/api/clients/${id}`,
       providesTags: ['Client', { type: 'Call', id: 'LIST' }],
     }),
+
+    updateClientChannel: build.mutation<
+      { channel: SlackChannel },
+      { clientId: string; slackChannelId: string }
+    >({
+      query: ({ clientId, slackChannelId }) => ({
+        url: `/api/clients/${clientId}/slack-channel`,
+        method: 'PATCH',
+        body: { slackChannelId },
+      }),
+      // The bot may have joined the channel
+      invalidatesTags: ['Client', 'SlackChannel'],
+    }),
   }),
 });
 
-export const { useListClientsQuery, useGetClientQuery } = clientsApi;
+export const { useListClientsQuery, useGetClientQuery, useUpdateClientChannelMutation } =
+  clientsApi;

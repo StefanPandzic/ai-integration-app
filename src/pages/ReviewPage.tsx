@@ -7,6 +7,7 @@ import {
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
 import { useListCoachesQuery } from '../features/coaches';
+import { useSlackChannels } from '../features/slack';
 import { LIVE_POLL_MS } from '../store/api';
 
 export const ReviewPage = () => {
@@ -18,6 +19,7 @@ export const ReviewPage = () => {
   );
   const { data: clients = [] } = useListClientsQuery();
   const { data: coaches = [] } = useListCoachesQuery();
+  const slackChannels = useSlackChannels();
   const { assignCall, assigningCallId } = useAssignCall();
 
   return (
@@ -32,6 +34,7 @@ export const ReviewPage = () => {
             calls={calls.data ?? []}
             clients={clients}
             coaches={coaches}
+            slackChannels={slackChannels}
             assigningCallId={assigningCallId}
             highlightCallId={params.get('call')}
             onAssign={assignCall}

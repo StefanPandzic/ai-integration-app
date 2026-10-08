@@ -18,6 +18,7 @@ import {
 } from '../../db/directoryRepo';
 import { enqueueJob } from '../../db/jobsRepo';
 import { ClientRow, IncomingCall } from '../../types/pipeline';
+import { SlackChannelError, prepareClientChannel } from '../slack/slackChannels';
 
 export const acceptGrainRecording = async (
   recordingId: string,
@@ -49,7 +50,7 @@ export const ingestCall = async (
 export class AssignError extends Error {
   constructor(
     message: string,
-    public readonly status: 404 | 409,
+    public readonly status: number,
   ) {
     super(message);
     this.name = 'AssignError';
@@ -60,23 +61,49 @@ const ASSIGNABLE_STATUSES = new Set(['needs_review', 'failed']);
 
 export type AssignTarget =
   | { clientId: string; coachId: string | null }
-  | { newClient: { name: string; email: string | null; coachId: string } };
+  | {
+      newClient: {
+        name: string;
+        email: string | null;
+        coachId: string;
+        /** null: the default client channel */
+        slackChannelId: string | null;
+      };
+    };
 
-/** Creates the client from the review queue; its email matches future calls */
+/**
+ * Creates the client from the review queue; its email matches future
+ * calls. A chosen Slack channel is checked (and joined) first.
+ */
 const createClient = async ({
   name,
   email,
   coachId,
+  slackChannelId,
 }: {
   name: string;
   email: string | null;
   coachId: string;
+  slackChannelId: string | null;
 }): Promise<ClientRow> => {
   if (!(await getCoach(coachId))) throw new AssignError(`Coach ${coachId} not found`, 404);
   if (email && (await findClientsByEmails([email])).length > 0) {
     throw new AssignError(`A client with email ${email} already exists; pick it from the list`, 409);
   }
-  return insertClient({ name, email, coachId, slackChannelId: getDefaultClientChannel() });
+  if (slackChannelId) {
+    try {
+      await prepareClientChannel(slackChannelId);
+    } catch (error) {
+      if (error instanceof SlackChannelError) throw new AssignError(error.message, error.status);
+      throw error;
+    }
+  }
+  return insertClient({
+    name,
+    email,
+    coachId,
+    slackChannelId: slackChannelId ?? getDefaultClientChannel(),
+  });
 };
 
 /**

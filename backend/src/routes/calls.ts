@@ -8,7 +8,8 @@
  * POST /api/calls                  ingest a call from another source (API)
  * POST /api/calls/:id/assign       resolve a review-queue call
  *                                  ({ clientId, coachId? } or
- *                                  { newClient: { name, email?, coachId } })
+ *                                  { newClient: { name, email?, coachId,
+ *                                  slackChannelId? } })
  */
 
 import crypto from 'crypto';
@@ -23,6 +24,7 @@ import {
   assignCall,
   ingestCall,
 } from '../services/pipeline/ingest';
+import { slackChannelIdSchema } from '../services/slack/slackChannels';
 import { CallStatus, participantSchema } from '../types/pipeline';
 import { handle, isUuid, uuidParam } from './helpers';
 
@@ -54,9 +56,16 @@ const assignSchema = z.union([
       name: z.string().trim().min(1).max(200),
       email: z.email().nullable().default(null),
       coachId: z.uuid(),
+      // Omitted: the default client channel
+      slackChannelId: slackChannelIdSchema.nullable().default(null),
     }),
   }),
 ]);
+
+/** Only the new client's channel, to explain why an assignment was rejected */
+const newClientChannelSchema = z.object({
+  newClient: z.object({ slackChannelId: slackChannelIdSchema.nullish() }).optional(),
+});
 
 const pageSchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(50),
@@ -131,7 +140,10 @@ callsRouter.post(
   handle(async (req, res) => {
     const parsed = assignSchema.safeParse(req.body);
     if (!parsed.success || !isUuid(req.params.id)) {
-      res.status(400).json({ error: 'Invalid assignment' });
+      const channel = newClientChannelSchema.safeParse(req.body);
+      res.status(400).json({
+        error: channel.success ? 'Invalid assignment' : channel.error.issues[0].message,
+      });
       return;
     }
     try {

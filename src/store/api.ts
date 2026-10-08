@@ -25,6 +25,7 @@ export const api = createApi({
     'Outbox',
     'Job',
     'Pipeline',
+    'SlackChannel',
   ],
   endpoints: () => ({}),
 });
