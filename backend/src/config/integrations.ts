@@ -18,7 +18,11 @@ export const getSlackMode = (): ConnectorMode =>
 export const getDriveMode = (): ConnectorMode =>
   process.env.DRIVE_MODE === 'live' ? 'live' : 'mock';
 
-export const getManagerChannel = (): string =>
+/** Slack channel of seeded clients and clients added from the review queue */
+export const getDefaultClientChannel = (): string =>
+  process.env.SLACK_DEMO_CHANNEL_ID || 'C0DEMOCHANNEL';
+
+export const getManagerChannel =(): string =>
   process.env.SLACK_MANAGER_CHANNEL_ID || '#coaching-managers';
 
 export const getOpsChannel = (): string =>

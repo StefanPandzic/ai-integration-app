@@ -2,17 +2,23 @@ import { Box, HStack, Link, Text, VStack } from '@chakra-ui/react';
 import { useEffect, useRef } from 'react';
 import { EmptyState } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
-import type { AssignableClient, CallListItem } from '../types';
+import type {
+  AssignableClient,
+  AssignableCoach,
+  AssignTarget,
+  CallListItem,
+} from '../types';
 import { callDate, formatDateTime } from '../utils/format';
 import { ReviewAssign } from './ReviewAssign';
 
 interface ReviewQueueListProps {
   calls: CallListItem[];
   clients: AssignableClient[];
+  coaches: AssignableCoach[];
   assigningCallId: string | null;
   /** Scrolled into view and highlighted (ops alert link: /review?call=) */
   highlightCallId?: string | null;
-  onAssign: (callId: string, clientId: string) => void;
+  onAssign: (callId: string, target: AssignTarget) => void;
   onOpen: (callId: string) => void;
 }
 
@@ -20,6 +26,7 @@ interface ReviewQueueListProps {
 export const ReviewQueueList = ({
   calls,
   clients,
+  coaches,
   assigningCallId,
   highlightCallId = null,
   onAssign,
@@ -73,8 +80,10 @@ export const ReviewQueueList = ({
             <Box flex='0 1 340px' minW='240px'>
               <ReviewAssign
                 clients={clients}
+                coaches={coaches}
+                participants={call.participants}
                 isAssigning={assigningCallId === call.id}
-                onAssign={(clientId) => onAssign(call.id, clientId)}
+                onAssign={(target) => onAssign(call.id, target)}
               />
             </Box>
           </HStack>

@@ -9,9 +9,15 @@
  */
 
 import { getCall, insertCall, setCallMatch } from '../../db/callsRepo';
-import { getClient } from '../../db/directoryRepo';
+import { getDefaultClientChannel } from '../../config/integrations';
+import {
+  findClientsByEmails,
+  getClient,
+  getCoach,
+  insertClient,
+} from '../../db/directoryRepo';
 import { enqueueJob } from '../../db/jobsRepo';
-import { IncomingCall } from '../../types/pipeline';
+import { ClientRow, IncomingCall } from '../../types/pipeline';
 
 export const acceptGrainRecording = async (
   recordingId: string,
@@ -52,25 +58,49 @@ export class AssignError extends Error {
 
 const ASSIGNABLE_STATUSES = new Set(['needs_review', 'failed']);
 
-/** Resolves a review-queue (or failed) call by hand and re-runs the pipeline */
-export const assignCall = async (
-  callId: string,
-  clientId: string,
-  coachId: string | null,
-): Promise<void> => {
-  const [call, client] = await Promise.all([getCall(callId), getClient(clientId)]);
+export type AssignTarget =
+  | { clientId: string; coachId: string | null }
+  | { newClient: { name: string; email: string | null; coachId: string } };
+
+/** Creates the client from the review queue; its email matches future calls */
+const createClient = async ({
+  name,
+  email,
+  coachId,
+}: {
+  name: string;
+  email: string | null;
+  coachId: string;
+}): Promise<ClientRow> => {
+  if (!(await getCoach(coachId))) throw new AssignError(`Coach ${coachId} not found`, 404);
+  if (email && (await findClientsByEmails([email])).length > 0) {
+    throw new AssignError(`A client with email ${email} already exists; pick it from the list`, 409);
+  }
+  return insertClient({ name, email, coachId, slackChannelId: getDefaultClientChannel() });
+};
+
+/**
+ * Resolves a review-queue (or failed) call by hand, to an existing client
+ * or one created on the spot, and re-runs the pipeline
+ */
+export const assignCall = async (callId: string, target: AssignTarget): Promise<void> => {
+  const call = await getCall(callId);
   if (!call) throw new AssignError(`Call ${callId} not found`, 404);
-  if (!client) throw new AssignError(`Client ${clientId} not found`, 404);
   if (!ASSIGNABLE_STATUSES.has(call.status)) {
     throw new AssignError(`Call is ${call.status}; only review or failed calls can be assigned`, 409);
   }
+
+  const client =
+    'newClient' in target ? await createClient(target.newClient) : await getClient(target.clientId);
+  if (!client) throw new AssignError('Client not found', 404);
+  const coachId = 'newClient' in target ? target.newClient.coachId : target.coachId;
 
   const resolvedCoachId = coachId ?? client.coach_id;
   if (!resolvedCoachId) {
     throw new AssignError(`Client ${client.name} has no coach; pass coachId`, 409);
   }
 
-  await setCallMatch(callId, resolvedCoachId, clientId);
+  await setCallMatch(callId, resolvedCoachId, client.id);
   await enqueueJob({
     type: 'process_call',
     payload: { callId },

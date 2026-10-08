@@ -7,6 +7,8 @@
  *                                  + outbox entries (Slack message, Drive doc)
  * POST /api/calls                  ingest a call from another source (API)
  * POST /api/calls/:id/assign       resolve a review-queue call
+ *                                  ({ clientId, coachId? } or
+ *                                  { newClient: { name, email?, coachId } })
  */
 
 import crypto from 'crypto';
@@ -41,10 +43,20 @@ const browserCallSchema = z.object({
   durationSeconds: z.number().int().nonnegative().nullable().default(null),
 });
 
-const assignSchema = z.object({
-  clientId: z.uuid(),
-  coachId: z.uuid().nullable().default(null),
-});
+const assignSchema = z.union([
+  z.object({
+    clientId: z.uuid(),
+    coachId: z.uuid().nullable().default(null),
+  }),
+  // A client the directory does not have yet (e.g. a first intro call)
+  z.object({
+    newClient: z.object({
+      name: z.string().trim().min(1).max(200),
+      email: z.email().nullable().default(null),
+      coachId: z.uuid(),
+    }),
+  }),
+]);
 
 const pageSchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(50),
@@ -123,7 +135,7 @@ callsRouter.post(
       return;
     }
     try {
-      await assignCall(req.params.id, parsed.data.clientId, parsed.data.coachId);
+      await assignCall(req.params.id, parsed.data);
       res.status(202).json({ ok: true });
     } catch (error) {
       if (!(error instanceof AssignError)) throw error;

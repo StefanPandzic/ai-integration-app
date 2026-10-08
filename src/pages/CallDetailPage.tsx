@@ -10,6 +10,7 @@ import {
   useCallDetail,
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
+import { useListCoachesQuery } from '../features/coaches';
 import { useRetryJob } from '../features/pipeline';
 
 export const CallDetailPage = () => {
@@ -18,6 +19,7 @@ export const CallDetailPage = () => {
 
   const { data, isLoading, error } = useCallDetail(callId);
   const { data: clients = [] } = useListClientsQuery();
+  const { data: coaches = [] } = useListCoachesQuery();
   const { assignCall, assigningCallId } = useAssignCall();
   const { retryJob, retryingJobId } = useRetryJob();
 
@@ -45,9 +47,10 @@ export const CallDetailPage = () => {
           <CallDetailView
             detail={data}
             clients={clients}
+            coaches={coaches}
             isAssigning={assigningCallId === data.call.id}
             isRetrying={retryingJobId !== null && retryingJobId === data.job?.id}
-            onAssign={(clientId) => assignCall(data.call.id, clientId)}
+            onAssign={(target) => assignCall(data.call.id, target)}
             onRetry={(jobId) => retryJob(jobId, data.call.id)}
             onOpenClient={(id) => navigate(`/clients/${id}`)}
             onOpenCoach={(id) => navigate(`/coaches/${id}`)}

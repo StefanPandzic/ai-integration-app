@@ -38,6 +38,28 @@ export const getClient = async (id: string): Promise<ClientRow | null> =>
   (await query<ClientRow>('select * from clients where id = $1', [id]))[0] ??
   null;
 
+export interface NewClient {
+  name: string;
+  email: string | null;
+  coachId: string;
+  slackChannelId: string;
+}
+
+export const insertClient = async ({
+  name,
+  email,
+  coachId,
+  slackChannelId,
+}: NewClient): Promise<ClientRow> =>
+  (
+    await query<ClientRow>(
+      `insert into clients (name, email, coach_id, slack_channel_id)
+       values ($1, $2, $3, $4)
+       returning *`,
+      [name, email, coachId, slackChannelId],
+    )
+  )[0];
+
 export interface ClientListItem {
   id: string;
   name: string;

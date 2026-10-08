@@ -3,7 +3,13 @@
  */
 
 import { CallSummary } from '../schemas/callSummary';
-import { CallRow, CallStatus, IncomingCall, JobStatus } from '../types/pipeline';
+import {
+  CallRow,
+  CallStatus,
+  IncomingCall,
+  JobStatus,
+  Participant,
+} from '../types/pipeline';
 import { query } from './index';
 
 /** Inserts the call unless its external ID was already stored */
@@ -138,6 +144,7 @@ export interface CallListItem {
   review_reason: string | null;
   started_at: Date | null;
   created_at: Date;
+  participants: Participant[];
   slack_message_ts: string | null;
   client_id: string | null;
   client_name: string | null;
@@ -167,7 +174,7 @@ export const listCalls = ({
 }: CallFilters = {}): Promise<CallListItem[]> =>
   query<CallListItem>(
     `select ca.id, ca.title, ca.source, ca.status, ca.review_reason,
-            ca.started_at, ca.created_at, ca.slack_message_ts,
+            ca.started_at, ca.created_at, ca.participants, ca.slack_message_ts,
             ca.client_id, cl.name as client_name,
             ca.coach_id, co.name as coach_name,
             cs.summary->>'client_sentiment' as client_sentiment,

@@ -8,6 +8,7 @@
  */
 
 import dotenv from 'dotenv';
+import { getDefaultClientChannel } from '../config/integrations';
 import { closePool, withTransaction } from './index';
 
 dotenv.config();
@@ -39,7 +40,7 @@ const CLIENTS = [
 ];
 
 const seed = async (): Promise<void> => {
-  const channelId = process.env.SLACK_DEMO_CHANNEL_ID || 'C0DEMOCHANNEL';
+  const channelId = getDefaultClientChannel();
 
   await withTransaction(async (client) => {
     for (const coach of COACHES) {

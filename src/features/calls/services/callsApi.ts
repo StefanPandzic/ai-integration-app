@@ -4,6 +4,7 @@
 
 import { api } from '../../../store/api';
 import type {
+  AssignTarget,
   CallDetail,
   CallFilters,
   CallListItem,
@@ -29,11 +30,11 @@ export const callsApi = api.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'Call', id }],
     }),
 
-    assignCall: build.mutation<void, { callId: string; clientId: string }>({
-      query: ({ callId, clientId }) => ({
+    assignCall: build.mutation<void, { callId: string; target: AssignTarget }>({
+      query: ({ callId, target }) => ({
         url: `/api/calls/${callId}/assign`,
         method: 'POST',
-        body: { clientId },
+        body: target,
       }),
       invalidatesTags: (_result, _error, { callId }) => [
         { type: 'Call', id: 'LIST' },

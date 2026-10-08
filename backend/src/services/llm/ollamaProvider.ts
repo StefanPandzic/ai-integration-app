@@ -22,9 +22,22 @@ const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
 // Hard cap per request; a runaway generation fails and the job retries
 const REQUEST_TIMEOUT_MS = 10 * 60_000;
 const MAX_OUTPUT_TOKENS = 6144;
-// Prompt (~1K) + thinking (~2-4K) + JSON (~1K). Keep it small enough for the
-// model to stay fully on the GPU (16K spilled 20% to CPU on an 8 GB card)
-const CONTEXT_TOKENS = 8192;
+// Summaries fit in 8K: prompt (~1K) + thinking (~2-4K) + JSON (~1K), small
+// enough to stay fully on the GPU (16K spilled 20% to CPU on an 8 GB card).
+// Larger prompts (weekly reports, ~9K) get a bigger window: slower, not failed
+const MIN_CONTEXT_TOKENS = 8192;
+const MAX_CONTEXT_TOKENS = 32768;
+const CONTEXT_STEP = 2048;
+// Conservative chars-per-token so the estimate errs on the large side
+const CHARS_PER_TOKEN = 3;
+
+/** Context window for a request: estimated prompt + output budget */
+const contextTokensFor = (messages: OllamaMessage[]): number => {
+  const chars = messages.reduce((sum, m) => sum + m.content.length, 0);
+  const needed = Math.ceil(chars / CHARS_PER_TOKEN) + MAX_OUTPUT_TOKENS;
+  const rounded = Math.ceil(needed / CONTEXT_STEP) * CONTEXT_STEP;
+  return Math.min(MAX_CONTEXT_TOKENS, Math.max(MIN_CONTEXT_TOKENS, rounded));
+};
 
 const log = createLogger('llm');
 
@@ -112,7 +125,10 @@ export const createOllamaProvider = (): LLMProvider => {
         // Sampling comes from the model's Modelfile defaults: greedy decoding
         // (temperature 0) sends Qwen3-family models such as deepseek-r1:8b
         // into repetition loops. num_predict bounds runaway generations.
-        options: { num_ctx: CONTEXT_TOKENS, num_predict: MAX_OUTPUT_TOKENS },
+        options: {
+          num_ctx: contextTokensFor(messages),
+          num_predict: MAX_OUTPUT_TOKENS,
+        },
       }),
     });
 

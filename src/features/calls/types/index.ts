@@ -23,6 +23,7 @@ export interface CallListItem {
   review_reason: string | null;
   started_at: string | null;
   created_at: string;
+  participants: Participant[];
   slack_message_ts: string | null;
   client_id: string | null;
   client_name: string | null;
@@ -144,5 +145,22 @@ export type DemoSwitch = 'drop-next-webhook' | 'fail-next-call';
 export interface AssignableClient {
   id: string;
   name: string;
+  email: string | null;
   coach_name: string | null;
 }
+
+/** Minimal coach shape for the new-client form of the assign picker */
+export interface AssignableCoach {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface NewClientInput {
+  name: string;
+  email: string | null;
+  coachId: string;
+}
+
+/** An existing client, or one created with the assignment */
+export type AssignTarget = { clientId: string } | { newClient: NewClientInput };

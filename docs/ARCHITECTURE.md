@@ -90,7 +90,7 @@ Detailed design: [PHASE3_PLAN.md](PHASE3_PLAN.md).
 | GET | `/api/calls?status=&clientId=&coachId=&limit=&offset=` | List with client/coach names, summary sentiment, action-item count and latest job state |
 | GET | `/api/calls/:id` | `{ call, summary, client, coach, job, outbox: { slack, drive } }` |
 | POST | `/api/calls` | Ingest a call from another source (`source: 'browser'`) |
-| POST | `/api/calls/:id/assign` | Resolve a review-queue (or failed) call |
+| POST | `/api/calls/:id/assign` | Resolve a review-queue (or failed) call: `{ clientId }`, or `{ newClient: { name, email, coachId } }` to create the client too (default Slack channel; its email matches future calls) |
 | GET | `/api/clients?coachId=` | Clients with call count, last call date and latest sentiment |
 | GET | `/api/clients/:id` | `{ client, calls, summaries }` (summaries newest first) |
 | GET | `/api/coaches` | Coaches with client count, calls total and calls in the last 7 days |

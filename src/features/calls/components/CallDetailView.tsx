@@ -19,7 +19,7 @@ import {
 import type { ReactNode } from 'react';
 import { Panel } from '../../../components';
 import { useAppColors } from '../../../constants/colors';
-import type { AssignableClient, CallDetail } from '../types';
+import type { AssignableClient, AssignableCoach, AssignTarget, CallDetail } from '../types';
 import { callDate, formatDateTime, formatDuration } from '../utils/format';
 import { CallStatusBadge } from './CallBadges';
 import { CallSummaryView } from './CallSummaryView';
@@ -29,9 +29,10 @@ import { TranscriptView } from './TranscriptView';
 interface CallDetailViewProps {
   detail: CallDetail;
   clients: AssignableClient[];
+  coaches: AssignableCoach[];
   isAssigning: boolean;
   isRetrying: boolean;
-  onAssign: (clientId: string) => void;
+  onAssign: (target: AssignTarget) => void;
   /** Re-queues the dead job (shown only when the latest job is dead) */
   onRetry: (jobId: string) => void;
   onOpenClient: (clientId: string) => void;
@@ -56,6 +57,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => {
 export const CallDetailView = ({
   detail,
   clients,
+  coaches,
   isAssigning,
   isRetrying,
   onAssign,
@@ -99,7 +101,13 @@ export const CallDetailView = ({
                 <Text fontSize='sm' color={colors.textPrimary}>
                   {call.review_reason ?? 'The call could not be matched to a client.'}
                 </Text>
-                <ReviewAssign clients={clients} isAssigning={isAssigning} onAssign={onAssign} />
+                <ReviewAssign
+                  clients={clients}
+                  coaches={coaches}
+                  participants={call.participants}
+                  isAssigning={isAssigning}
+                  onAssign={onAssign}
+                />
               </VStack>
             </Panel>
           )}

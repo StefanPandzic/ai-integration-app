@@ -6,6 +6,7 @@ import {
   useListCallsQuery,
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
+import { useListCoachesQuery } from '../features/coaches';
 import { LIVE_POLL_MS } from '../store/api';
 
 export const ReviewPage = () => {
@@ -16,6 +17,7 @@ export const ReviewPage = () => {
     { pollingInterval: LIVE_POLL_MS },
   );
   const { data: clients = [] } = useListClientsQuery();
+  const { data: coaches = [] } = useListCoachesQuery();
   const { assignCall, assigningCallId } = useAssignCall();
 
   return (
@@ -29,6 +31,7 @@ export const ReviewPage = () => {
           <ReviewQueueList
             calls={calls.data ?? []}
             clients={clients}
+            coaches={coaches}
             assigningCallId={assigningCallId}
             highlightCallId={params.get('call')}
             onAssign={assignCall}
