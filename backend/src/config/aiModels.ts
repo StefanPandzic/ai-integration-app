@@ -24,27 +24,33 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
 ];
 
 // Structured-output LLM provider settings (call summaries, reports)
-export type LLMProviderName = 'gemini' | 'ollama';
+export type LLMProviderName = 'gemini' | 'gemini-lite' | 'ollama';
 
 export interface LLMSettings {
   primary: LLMProviderName;
-  fallback: LLMProviderName | null;
+  /** Tried in order when the primary (or the previous fallback) fails */
+  fallbacks: LLMProviderName[];
   ollamaModel: string;
   geminiModel: string;
+  geminiLiteModel: string;
   maxTokens: number;
-  /** Client-side cap below the API key's Gemini rate limit */
+  /** Client-side caps below the API key's per-model Gemini rate limits */
   geminiRequestsPerMinute: number;
+  geminiLiteRequestsPerMinute: number;
 }
 
 export const LLM_SETTINGS: LLMSettings = {
-  // Gemini with an Ollama fallback once GEMINI_API_KEY is set; Ollama
+  // Gemini Flash → Flash Lite → Ollama once GEMINI_API_KEY is set; Ollama
   // (deepseek-r1) alone until then
   primary: process.env.GEMINI_API_KEY ? 'gemini' : 'ollama',
-  fallback: process.env.GEMINI_API_KEY ? 'ollama' : null,
+  fallbacks: process.env.GEMINI_API_KEY ? ['gemini-lite', 'ollama'] : [],
   ollamaModel: 'deepseek-r1',
-  // Free-tier model (aistudio.google.com lists the current ones)
+  // Free-tier models (aistudio.google.com lists the current ones)
   geminiModel: 'gemini-3.5-flash',
+  geminiLiteModel: 'gemini-3.5-flash-lite',
   maxTokens: 16000,
-  // Free tier allows ~10 requests/min for Flash; raise on a paid key
+  // Free tier allows ~10 requests/min for Flash and ~15 for Flash Lite;
+  // raise on a paid key
   geminiRequestsPerMinute: 8,
+  geminiLiteRequestsPerMinute: 12,
 };

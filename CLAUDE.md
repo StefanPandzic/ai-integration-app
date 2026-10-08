@@ -17,11 +17,11 @@ cd backend && npm run reports:check -- <coachId> [YYYY-MM-DD]  # print a coach r
 cd backend && npm run eval        # score summaries of the 5 samples (`-- ollama`, `-- --json out.json`); exit 1 on failure
 ```
 
-No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_API_KEY` is set, summaries use local Ollama (`deepseek-r1`); with it, Gemini is primary and Ollama the fallback — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
+No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_API_KEY` is set, summaries use local Ollama (`deepseek-r1`); with it, Gemini Flash is primary, then Gemini Flash Lite, then Ollama — see [OLLAMA_SETUP.md](OLLAMA_SETUP.md).
 
 ## Layout
 
-- `backend/src/services/llm/` — `generateStructured()`: Gemini (`@google/genai`, structured outputs) with Ollama fallback; all output zod-validated. Schemas in `backend/src/schemas/`
+- `backend/src/services/llm/` — `generateStructured()`: Gemini Flash → Gemini Flash Lite (`@google/genai`, structured outputs) → Ollama fallback chain; all output zod-validated. Schemas in `backend/src/schemas/`
 - `backend/src/db/` — `pg` pool, migration runner, seed, and `*Repo.ts` query modules; SQL in `backend/db/migrations/`
 - `backend/src/services/pipeline/` — call pipeline: `ingest.ts` (entry points) → jobs → `processCall.ts` (match → summarize → Slack → Drive, each step resumable); `reconcile.ts` (nightly `reconcile_grain`); `demoFaults.ts`. Siblings: `queue/` is the Postgres job worker (backoff, dead-letter, per-job log context); `grain/` the connector (`GRAIN_MODE=mock` sample calls, `mockGrain.ts` recording memory + drop-webhook switch) and webhook signature; `slack/` the Block Kit builders and connector; `rateLimit.ts` token buckets (Gemini, Slack)
 - `backend/src/services/scheduler/` — crons (`REPORTS_CRON`, `RECONCILE_CRON`) with startup catch-up

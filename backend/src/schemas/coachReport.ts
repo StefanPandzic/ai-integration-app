@@ -117,9 +117,14 @@ export const coachAssessmentSchema = z.object({
     ),
 });
 
-/** Whole report in one call (used when a coach has few clients) */
+/**
+ * Whole report in one call (used when a coach has few clients). per_client
+ * has no maxItems: a bound on it, nested over the sections' bounded arrays,
+ * exceeds Gemini's schema complexity limit (400 INVALID_ARGUMENT). The
+ * client count is checked in code instead.
+ */
 export const coachReportSchema = z.object({
-  per_client: z.array(clientSectionSchema).max(25),
+  per_client: z.array(clientSectionSchema),
   ...coachAssessmentSchema.shape,
 });
 

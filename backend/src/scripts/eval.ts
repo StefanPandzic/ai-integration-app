@@ -30,6 +30,7 @@ import {
   SAMPLE_CALLS,
   SampleCall,
 } from '../services/grain/sampleCalls';
+import { providerChain } from '../services/llm';
 import { summarizeCall } from '../services/pipeline/summarizeCall';
 import { CallRow, ClientRow, CoachRow } from '../types/pipeline';
 
@@ -237,11 +238,11 @@ const run = async (): Promise<void> => {
   ) as LLMProviderName | undefined;
   if (forced) {
     LLM_SETTINGS.primary = forced;
-    LLM_SETTINGS.fallback = null;
+    LLM_SETTINGS.fallbacks = [];
   }
 
   console.log(
-    `Evaluating ${SAMPLE_CALLS.length} samples with ${LLM_SETTINGS.primary}${LLM_SETTINGS.fallback ? ` (fallback ${LLM_SETTINGS.fallback})` : ''}...\n`,
+    `Evaluating ${SAMPLE_CALLS.length} samples with ${providerChain().join(' → ')}...\n`,
   );
 
   const results: SampleResult[] = [];

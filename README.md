@@ -49,7 +49,7 @@ cd backend && npm run dev       # API, job worker and schedulers on :3001
 npm run dev                     # dashboard on :5173
 ```
 
-The LLM provider is set in `backend/src/config/aiModels.ts`. It uses local Ollama until `GEMINI_API_KEY` is set; then Gemini is primary with an Ollama fallback. `npm run llm:check` (in `backend/`) checks that the provider works.
+The LLM provider is set in `backend/src/config/aiModels.ts`. It uses local Ollama until `GEMINI_API_KEY` is set; then Gemini Flash is primary, with Gemini Flash Lite and then Ollama as fallbacks. `npm run llm:check` (in `backend/`) checks that the provider works.
 
 ## 5-minute demo
 

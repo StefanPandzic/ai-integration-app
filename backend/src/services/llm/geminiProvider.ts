@@ -3,13 +3,13 @@
  *
  * Uses Gemini structured outputs (responseJsonSchema) so the response is
  * constrained to the zod schema by the API, then re-validates with zod.
- * Safety blocks are reported as refusals. Requests are rate limited
- * client-side (LLM_SETTINGS.geminiRequestsPerMinute).
+ * Safety blocks are reported as refusals. One factory serves every Gemini
+ * model (Flash, Flash Lite), each rate limited client-side.
  */
 
 import type { GoogleGenAI } from '@google/genai' with { 'resolution-mode': 'import' };
 import { z } from 'zod';
-import { LLM_SETTINGS } from '../../config/aiModels';
+import { LLM_SETTINGS, LLMProviderName } from '../../config/aiModels';
 import { acquire } from '../rateLimit';
 import {
   LLMOutputError,
@@ -31,30 +31,43 @@ const REFUSAL_REASONS = new Set<string>([
   'RECITATION',
 ]);
 
-export const createGeminiProvider = (): LLMProvider => {
-  // Created on first use so a missing GEMINI_API_KEY only fails Gemini calls.
-  // The SDK's types are ESM-only, so it is loaded with a dynamic import
-  let client: GoogleGenAI | null = null;
-  const getClient = async (): Promise<GoogleGenAI> => {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not set');
-    }
-    if (!client) {
-      const { GoogleGenAI } = await import('@google/genai');
-      client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    }
-    return client;
-  };
+// Created on first use so a missing GEMINI_API_KEY only fails Gemini calls,
+// and shared by every Gemini model. The SDK's types are ESM-only, so it is
+// loaded with a dynamic import
+let client: GoogleGenAI | null = null;
+const getClient = async (): Promise<GoogleGenAI> => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set');
+  }
+  if (!client) {
+    const { GoogleGenAI } = await import('@google/genai');
+    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return client;
+};
 
+interface GeminiProviderOptions {
+  name: Extract<LLMProviderName, 'gemini' | 'gemini-lite'>;
+  /** Read per call so scripts can override LLM_SETTINGS at runtime */
+  model: () => string;
+  requestsPerMinute: () => number;
+}
+
+export const createGeminiProvider = ({
+  name,
+  model,
+  requestsPerMinute,
+}: GeminiProviderOptions): LLMProvider => {
   const generateStructured = async <S extends z.ZodType>(
     request: StructuredRequest<S>,
   ): Promise<StructuredResult<z.infer<S>>> => {
-    await acquire('gemini', {
-      perSecond: LLM_SETTINGS.geminiRequestsPerMinute / 60,
+    // Gemini quotas are per model, so each model has its own bucket
+    await acquire(name, {
+      perSecond: requestsPerMinute() / 60,
       burst: GEMINI_BURST,
     });
     const response = await (await getClient()).models.generateContent({
-      model: LLM_SETTINGS.geminiModel,
+      model: model(),
       contents: request.prompt,
       config: {
         systemInstruction: request.system,
@@ -68,7 +81,7 @@ export const createGeminiProvider = (): LLMProvider => {
     if (blockReason && blockReason !== 'BLOCKED_REASON_UNSPECIFIED') {
       throw new LLMRefusalError(
         `Gemini blocked the prompt for task "${request.task}" (reason: ${blockReason})`,
-        'gemini',
+        name,
       );
     }
 
@@ -76,14 +89,14 @@ export const createGeminiProvider = (): LLMProvider => {
     if (finishReason && REFUSAL_REASONS.has(finishReason)) {
       throw new LLMRefusalError(
         `Gemini declined task "${request.task}" (reason: ${finishReason})`,
-        'gemini',
+        name,
       );
     }
 
     if (finishReason === 'MAX_TOKENS') {
       throw new LLMOutputError(
         `Gemini output truncated at maxOutputTokens for task "${request.task}"`,
-        'gemini',
+        name,
         ['finishReason: MAX_TOKENS'],
       );
     }
@@ -94,7 +107,7 @@ export const createGeminiProvider = (): LLMProvider => {
     } catch {
       throw new LLMOutputError(
         `Gemini output is not valid JSON for task "${request.task}"`,
-        'gemini',
+        name,
         ['(root): response is not valid JSON'],
       );
     }
@@ -105,7 +118,7 @@ export const createGeminiProvider = (): LLMProvider => {
     if (!validated.success) {
       throw new LLMOutputError(
         `Gemini output failed schema validation for task "${request.task}"`,
-        'gemini',
+        name,
         formatZodIssues(validated.error),
       );
     }
@@ -113,8 +126,8 @@ export const createGeminiProvider = (): LLMProvider => {
     const usage = response.usageMetadata;
     return {
       data: validated.data,
-      provider: 'gemini',
-      model: response.modelVersion ?? LLM_SETTINGS.geminiModel,
+      provider: name,
+      model: response.modelVersion ?? model(),
       usage: usage
         ? {
             inputTokens: usage.promptTokenCount ?? 0,
@@ -127,8 +140,8 @@ export const createGeminiProvider = (): LLMProvider => {
   };
 
   return {
-    name: 'gemini',
-    model: () => LLM_SETTINGS.geminiModel,
+    name,
+    model,
     generateStructured,
   };
 };

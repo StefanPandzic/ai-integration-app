@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { LLM_SETTINGS } from './config/aiModels';
 import { checkDatabase, isDatabaseConfigured } from './db';
 import { createLogger, errorMessage } from './lib/logger';
-import { getProvider } from './services/llm';
+import { getProvider, providerChain } from './services/llm';
 import { callsRouter } from './routes/calls';
 import { demoRouter } from './routes/demo';
 import { directoryRouter } from './routes/directory';
@@ -94,9 +94,9 @@ app.get('/health', async (_req: Request, res: Response) => {
     ...pipeline,
     llm: {
       primary: `${LLM_SETTINGS.primary}/${getProvider(LLM_SETTINGS.primary).model()}`,
-      fallback: LLM_SETTINGS.fallback
-        ? `${LLM_SETTINGS.fallback}/${getProvider(LLM_SETTINGS.fallback).model()}`
-        : null,
+      fallbacks: LLM_SETTINGS.fallbacks.map(
+        (name) => `${name}/${getProvider(name).model()}`,
+      ),
     },
   });
 });
@@ -115,7 +115,7 @@ app.listen(PORT, () => {
   log.info(`🚀 Backend server running on http://localhost:${PORT}`);
   log.info(`📡 CORS enabled for: ${CORS_ORIGIN}`);
   log.info(
-    `🤖 LLM: ${LLM_SETTINGS.primary}${LLM_SETTINGS.fallback ? ` (fallback ${LLM_SETTINGS.fallback})` : ''}`,
+    `🤖 LLM: ${providerChain().join(' → ')}`,
   );
 
   if (isDatabaseConfigured()) {
