@@ -2,8 +2,8 @@
  * Demo Directory Seed
  *
  * Upserts the coaches and clients that the mock Grain sample calls refer
- * to. Safe to re-run. All clients post to SLACK_DEMO_CHANNEL_ID (change
- * per client in the clients table for a real workspace).
+ * to. Safe to re-run. Each client posts to its own channel env var
+ * (e.g. SLACK_CHANNEL_MARCUS_WEBB), falling back to SLACK_DEMO_CHANNEL_ID.
  * Usage: npm run db:seed
  */
 
@@ -24,23 +24,28 @@ const CLIENTS = [
     email: 'marcus@acme.example',
     coachEmail: 'dana@coaching.example',
     titleKeywords: ['acme'],
+    channelEnv: 'SLACK_CHANNEL_MARCUS_WEBB',
   },
   {
     name: 'Priya Shah',
     email: 'priya@northwind.example',
     coachEmail: 'dana@coaching.example',
     titleKeywords: ['northwind'],
+    channelEnv: 'SLACK_CHANNEL_PRIYA_SHAH',
   },
   {
     name: 'Jordan Kim',
     email: 'jordan@globex.example',
     coachEmail: 'sam@coaching.example',
     titleKeywords: ['globex'],
+    channelEnv: 'SLACK_CHANNEL_JORDAN_KIM',
   },
 ];
 
 const seed = async (): Promise<void> => {
-  const channelId = getDefaultClientChannel();
+  const defaultChannel = getDefaultClientChannel();
+  const channelOf = (c: (typeof CLIENTS)[number]): string =>
+    process.env[c.channelEnv] || defaultChannel;
 
   await withTransaction(async (client) => {
     for (const coach of COACHES) {
@@ -59,14 +64,13 @@ const seed = async (): Promise<void> => {
            set name = excluded.name, coach_id = excluded.coach_id,
                slack_channel_id = excluded.slack_channel_id,
                title_keywords = excluded.title_keywords`,
-        [c.name, c.email, c.coachEmail, channelId, c.titleKeywords],
+        [c.name, c.email, c.coachEmail, channelOf(c), c.titleKeywords],
       );
     }
   });
 
-  console.log(
-    `✅ Seeded ${COACHES.length} coaches and ${CLIENTS.length} clients (Slack channel ${channelId})`,
-  );
+  console.log(`✅ Seeded ${COACHES.length} coaches and ${CLIENTS.length} clients`);
+  for (const c of CLIENTS) console.log(`   ${c.name} → Slack channel ${channelOf(c)}`);
 };
 
 seed()

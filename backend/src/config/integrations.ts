@@ -1,8 +1,8 @@
 /**
  * Integration Settings (Slack, Drive, schedules, rate limits)
  *
- * Connector modes and delivery targets read from the environment. Only the
- * mock Drive connector exists; Slack live mode reuses the Phase 2 client.
+ * Connector modes and delivery targets read from the environment. Slack live
+ * mode reuses the Phase 2 client; Drive live mode is in services/drive.
  */
 
 import type { RateLimit } from '../services/rateLimit';
@@ -17,6 +17,13 @@ export const getSlackMode = (): ConnectorMode =>
 
 export const getDriveMode = (): ConnectorMode =>
   process.env.DRIVE_MODE === 'live' ? 'live' : 'mock';
+
+/**
+ * Folder that holds Calls/ and Weekly reports/: a folder in a Shared Drive
+ * (service account) or the one `npm run drive:setup` creates (OAuth)
+ */
+export const getDriveRootFolderId = (): string | null =>
+  process.env.DRIVE_ROOT_FOLDER_ID || null;
 
 /** Slack channel of seeded clients and clients added from the review queue */
 export const getDefaultClientChannel = (): string =>

@@ -185,6 +185,10 @@ export const CallDetailView = ({
                   >
                     Archived · view document
                   </Link>
+                ) : call.drive_url ? (
+                  <Link color={colors.textAccent} href={call.drive_url} isExternal>
+                    Archived · open in Google Docs
+                  </Link>
                 ) : (
                   'Archived'
                 )}

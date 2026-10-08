@@ -47,14 +47,27 @@ export const ReportDetailPage = () => {
         actions={
           data && (
             <HStack spacing={2}>
-              <Button
-                size='sm'
-                variant='outline'
-                isDisabled={!data.outbox.drive}
-                onClick={() => navigate(`/outbox?tab=drive&item=${data.outbox.drive}`)}
-              >
-                Drive document
-              </Button>
+              {!data.outbox.drive && data.report.drive_url ? (
+                <Button
+                  as='a'
+                  size='sm'
+                  variant='outline'
+                  href={data.report.drive_url}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                >
+                  Drive document
+                </Button>
+              ) : (
+                <Button
+                  size='sm'
+                  variant='outline'
+                  isDisabled={!data.outbox.drive}
+                  onClick={() => navigate(`/outbox?tab=drive&item=${data.outbox.drive}`)}
+                >
+                  Drive document
+                </Button>
+              )}
               <Button
                 size='sm'
                 variant='outline'

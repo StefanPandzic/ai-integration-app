@@ -13,7 +13,8 @@
     "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
     "db:reset-calls": "ts-node-dev --transpile-only src/db/resetCalls.ts",
     "reports:check": "ts-node-dev --transpile-only src/scripts/reportsCheck.ts",
-    "eval": "ts-node-dev --transpile-only src/scripts/eval.ts"
+    "eval": "ts-node-dev --transpile-only src/scripts/eval.ts",
+    "drive:setup": "ts-node-dev --transpile-only src/scripts/driveSetup.ts"
   },
   "keywords": [
     "ollama",
@@ -28,6 +29,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "google-auth-library": "^10.9.1",
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "zod": "^4.6.5"

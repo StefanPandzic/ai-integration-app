@@ -107,10 +107,30 @@ nightly 02:00 CT: listRecordings(last 48h) → enqueue any id we don't have
 
 ```
 <Coaching root>/
-  Clients/<Client name>/<YYYY-MM-DD> <Call title>        (per-call summary)
-  Weekly reports/<YYYY-MM-DD>/<Coach name>               (coach report)
-  Weekly reports/<YYYY-MM-DD>/Manager overview           (manager report)
+  Calls/<Client name>/<YYYY-MM>/<YYYY-MM-DD> <Call title>   (per-call summary)
+  Weekly reports/<YYYY-MM-DD>/<Coach name>                 (coach report)
+  Weekly reports/<YYYY-MM-DD>/Manager overview             (manager report)
 ```
+
+### Setup (implemented: `DRIVE_MODE=live`)
+
+The live connector is `backend/src/services/drive/` (`driveAuth.ts` for credentials, `driveApi.ts` for REST, `driveConnector.ts` for folders and idempotency). `npm run drive:setup` checks everything and uploads a "Setup check" doc.
+
+**Personal Google account (OAuth):**
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the **Google Drive API**.
+2. Set up the **OAuth consent screen**: External, add your account as a test user, scope `.../auth/drive.file`. Then **Publish app** (to "In production"). In "Testing" status, refresh tokens expire after 7 days. `drive.file` is a non-sensitive scope, so publishing needs no Google verification.
+3. Under **Credentials**, create an OAuth client ID of type **Desktop app**. Put its ID and secret in `backend/.env` as `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`.
+4. Run `cd backend && npm run drive:setup`. Open the printed URL and allow access. The script creates a "Coaching Call Intelligence" folder in My Drive and prints `GOOGLE_OAUTH_REFRESH_TOKEN` and `DRIVE_ROOT_FOLDER_ID`.
+5. Add those values and `DRIVE_MODE=live` to `backend/.env`, then restart the backend.
+
+**Google Workspace (service account + Shared Drive):**
+
+1. Enable the Drive API as above. Create a **service account** and a JSON key.
+2. Add the service account's email as **Content manager** of a Shared Drive. Create a root folder there and copy its ID from the URL.
+3. In `backend/.env`, set `GOOGLE_SERVICE_ACCOUNT_JSON` (the key JSON on one line, or the path to the key file) and `DRIVE_ROOT_FOLDER_ID`. Run `npm run drive:setup`, then set `DRIVE_MODE=live`.
+
+Calls and reports archived before the switch keep their mock outbox documents. Only new saves go to Drive.
 
 ### Live design
 
@@ -122,14 +142,14 @@ nightly 02:00 CT: listRecordings(last 48h) → enqueue any id we don't have
   | Personal Google account | OAuth for one admin user (scope `drive.file`); a refresh token in `GOOGLE_OAUTH_REFRESH_TOKEN` | Works on a free account. Files are owned by that user and stop updating if they revoke access |
 
 - **API (REST over `fetch`; `google-auth-library` only for tokens):**
-  - **Find or create a folder:** `GET /drive/v3/files` with `q: name='…' and '<parentId>' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`. If nothing is found, `POST /drive/v3/files` with the folder mimeType. Cache resolved folder IDs in a `drive_folders (path, folder_id)` table so each week costs one lookup.
+  - **Find or create a folder:** `GET /drive/v3/files` with `q: name='…' and '<parentId>' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`. If nothing is found, `POST /drive/v3/files` with the folder mimeType. Resolved folder IDs are cached in memory per process, so a restart costs one lookup per folder.
   - **Create a document:** `POST /upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true`. The metadata is `{ name, parents: [folderId], mimeType: 'application/vnd.google-apps.document', appProperties: { key } }` and the body is the rendered HTML. Drive converts it to a Google Doc, keeping headings, lists and tables.
-  - **Regenerated report:** `PATCH /upload/drive/v3/files/<id>?uploadType=media` replaces the content in place, so the link in Slack stays valid.
+  - **Regenerated report:** `PATCH /upload/drive/v3/files/<id>?uploadType=multipart` replaces the content (and title) in place, so the link in Slack stays valid.
 - **Idempotency:**
   - A stored `drive_file_id` means the document isn't created again.
   - To survive a crash between upload and DB write, each file carries `appProperties.key` (`call:<id>` or `report:<id>`). Before creating, query `appProperties has { key='key' and value='…' }` and reuse any match.
 - **Errors:**
-  - `401` (expired token): refresh once, then retry.
+  - Revoked or expired credentials (`invalid_grant`): `NonRetryableError` telling ops to rerun `drive:setup`. A `401` with a fresh token is retried with backoff.
   - `403 rateLimitExceeded`, `403 userRateLimitExceeded` or `429`: `RetryLaterError` with backoff.
   - `403 storageQuotaExceeded` (a service account writing outside a Shared Drive) or `404` on the root folder: `NonRetryableError` and an alert.
 - **Ordering:** the Drive archive runs **after** Slack in its own step. A Drive outage never delays the summary reaching the client channel.

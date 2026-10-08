@@ -1,6 +1,6 @@
 # Coaching Call Intelligence
 
-React + TypeScript dashboard (Vite, Chakra UI, Redux Toolkit + RTK Query, React Router) for coaching calls, clients and coaches, with a Node/Express backend that owns all AI and pipeline logic (Grain → LLM summary → Slack + Drive, weekly coach/manager reports → Slack + Drive, nightly Grain reconcile, ops alerts). Grain, Slack and Drive are mocks; Slack/Drive write to an outbox shown at `/outbox` (live designs: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)). Upgrade history: [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md) (all phases done). Ops runbook: [docs/SOP.md](docs/SOP.md). Architecture and API reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+React + TypeScript dashboard (Vite, Chakra UI, Redux Toolkit + RTK Query, React Router) for coaching calls, clients and coaches, with a Node/Express backend that owns all AI and pipeline logic (Grain → LLM summary → Slack + Drive, weekly coach/manager reports → Slack + Drive, nightly Grain reconcile, ops alerts). Grain is a mock; Slack and Drive default to mocks (`*_MODE=live` for real); Slack/Drive write to an outbox shown at `/outbox` (live designs: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)). Upgrade history: [docs/UPGRADE_PLAN.md](docs/UPGRADE_PLAN.md) (all phases done). Ops runbook: [docs/SOP.md](docs/SOP.md). Architecture and API reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Commands
 
@@ -14,6 +14,7 @@ cd backend && npm run db:seed     # demo coaches/clients matching the mock Grain
 cd backend && npm run db:reset-calls  # delete all calls, summaries, jobs and mock Grain recordings (keeps coaches/clients)
 cd backend && npm run llm:check   # structured-output smoke test (`-- ollama` forces a provider)
 cd backend && npm run reports:check -- <coachId> [YYYY-MM-DD]  # print a coach report without saving
+cd backend && npm run drive:setup # Google Drive OAuth consent, root folder, test doc (DRIVE_MODE=live)
 cd backend && npm run eval        # score summaries of the 5 samples (`-- ollama`, `-- --json out.json`); exit 1 on failure
 ```
 
@@ -26,7 +27,7 @@ No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_AP
 - `backend/src/services/pipeline/` — call pipeline: `ingest.ts` (entry points) → jobs → `processCall.ts` (match → summarize → Slack → Drive, each step resumable); `reconcile.ts` (nightly `reconcile_grain`); `demoFaults.ts`. Siblings: `queue/` is the Postgres job worker (backoff, dead-letter, per-job log context); `grain/` the connector (`GRAIN_MODE=mock` sample calls, `mockGrain.ts` recording memory + drop-webhook switch) and webhook signature; `slack/` the Block Kit builders and connector; `rateLimit.ts` token buckets (Gemini, Slack)
 - `backend/src/services/scheduler/` — crons (`REPORTS_CRON`, `RECONCILE_CRON`) with startup catch-up
 - `backend/src/services/reports/` — weekly reports: `runWeeklyReports.ts` (jobs `weekly_reports` → `coach_report` × N → `manager_report`, delivery), `coachReport.ts`/`managerReport.ts` (LLM writes, code counts; refs checked in `grounding.ts`). Rubric in `backend/src/schemas/coachReport.ts`
-- `backend/src/services/drive/`, `services/slack/`, `services/alerts/` — `DriveConnector`/`SlackConnector` (`*_MODE=mock` → `integration_outbox`), ops alerts (every dead job, review calls, partial runs, recovered recordings; keyed)
+- `backend/src/services/drive/`, `services/slack/`, `services/alerts/` — `DriveConnector`/`SlackConnector` (`*_MODE=mock` → `integration_outbox`; live Drive = `driveAuth.ts` + `driveApi.ts`), ops alerts (every dead job, review calls, partial runs, recovered recordings; keyed)
 - `backend/src/lib/logger.ts` — `createLogger(scope)`, `withLogContext({ jobId, callId, runId })`; `LOG_FORMAT=pretty|json`
 - `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`, read-only), `reports.ts` (`/api/reports`), `outbox.ts` (`/api/outbox`), `pipeline.ts` (`/api/pipeline/*`, `/api/jobs`, retry), `demo.ts` (`/api/demo/*`)
 - `backend/src/config/aiModels.ts` — LLM provider settings and Ollama model metadata; `config/integrations.ts` — connector modes, channels, crons, Slack rate limit
