@@ -8,12 +8,14 @@ import { getProvider, providerChain } from './services/llm';
 import { callsRouter } from './routes/calls';
 import { demoRouter } from './routes/demo';
 import { directoryRouter } from './routes/directory';
+import { eventsRouter } from './routes/events';
 import { outboxRouter } from './routes/outbox';
 import { getPipelineHealth, pipelineRouter } from './routes/pipeline';
 import { reportsRouter } from './routes/reports';
 import { slackRouter } from './routes/slack';
 import { RawBodyRequest, webhooksRouter } from './routes/webhooks';
 import { notifyDeadJob } from './services/alerts/opsAlerts';
+import { startLiveEvents } from './services/live/liveEvents';
 import { JOB_HANDLERS } from './services/pipeline/jobHandlers';
 import { createWorker } from './services/queue/worker';
 import { startScheduler } from './services/scheduler';
@@ -42,7 +44,8 @@ app.use(
   }),
 );
 
-// Call pipeline, weekly reports, pipeline health and the mock integration outbox
+// Call pipeline, weekly reports, pipeline health, the mock integration outbox
+// and the live-updates stream
 app.use('/webhooks', webhooksRouter);
 app.use('/api', callsRouter);
 app.use('/api', directoryRouter);
@@ -51,6 +54,7 @@ app.use('/api', reportsRouter);
 app.use('/api', outboxRouter);
 app.use('/api', pipelineRouter);
 app.use('/api', slackRouter);
+app.use('/api', eventsRouter);
 
 /**
  * Health check for uptime monitors: 503 when the database is configured
@@ -122,6 +126,7 @@ app.listen(PORT, () => {
 
   if (isDatabaseConfigured()) {
     createWorker(JOB_HANDLERS, { onDead: notifyDeadJob }).start();
+    startLiveEvents();
     void startScheduler();
   } else {
     log.warn('⚠️ DATABASE_URL not set: call pipeline worker and schedulers disabled');

@@ -48,6 +48,7 @@ Every entry point stores work and returns right away. The Postgres job worker do
 | Slack | `services/slack/` | `SlackConnector` (`SLACK_MODE=mock` writes to the outbox; `live` posts and honors `Retry-After`), Block Kit builders for summaries, reports and ops alerts |
 | Drive | `services/drive/driveConnector.ts`, `renderCall.ts` | `DriveConnector.saveDocument(folder, title, html, key)`; mock only (`DRIVE_MODE=mock`), idempotent per key. Call summaries go to `Calls/<Client>/<YYYY-MM>` |
 | Alerts | `services/alerts/opsAlerts.ts` | Ops channel alerts (`SLACK_OPS_CHANNEL_ID`), each with an idempotency key: every dead job, review-queue calls, partial report runs, recovered recordings |
+| Live updates | `services/live/liveEvents.ts`, `routes/events.ts`, migration `005_live_updates.sql` | Statement triggers on every dashboard table `pg_notify('table_changes', <table>)` (any process, CLI scripts too). One dedicated `LISTEN` connection maps tables to RTK Query tags, batches them for 150 ms and pushes them over SSE; `publishChange()` covers in-memory state (demo switches). Reconnects with backoff; while down, `/api/events` returns 503 |
 | Config | `config/aiModels.ts`, `config/integrations.ts` | LLM settings and the Gemini rate limit; connector modes, channels, dashboard URL, crons, Slack rate limit |
 | Data | `db/*Repo.ts`, `db/migrations/*.sql` | `coaches`, `clients`, `calls`, `call_summaries`, `reports`, `jobs`, `integration_outbox`, `mock_grain_recordings` |
 
@@ -111,6 +112,7 @@ Detailed design: [PHASE3_PLAN.md](PHASE3_PLAN.md).
 | POST | `/api/demo/simulate-call` | Records a mock sample in mock Grain and sends its webhook unless dropped (`GRAIN_MODE=mock` only) |
 | POST | `/api/demo/drop-next-webhook`, `/api/demo/fail-next-call` | `{ enabled }` demo failure switches |
 | POST | `/api/demo/simulate-week` | `{ count? }` samples backdated across last week's workdays, through the webhook path |
+| GET | `/api/events` | Server-Sent Events: `event: invalidate` with `{ tags }` to refetch, `: ping` every 25 s. 503 while the database listener is down |
 | POST | `/webhooks/grain` | Signature check, then enqueue, then 200. Duplicates are acknowledged and ignored |
 | GET | `/health` | DB state, queue depth, oldest ready job, last reconcile and report run, next runs; 503 when the DB is unreachable |
 
@@ -151,6 +153,7 @@ theme.ts      Chakra theme (brand indigo scale, Inter)
 ### Data fetching
 
 - Server data lives only in the RTK Query cache (`store/api.ts`). Each feature injects its own endpoints, and the cache is never persisted.
-- List pages poll every `LIVE_POLL_MS` (3 s), because calls change state in the background. `useCallDetail` polls only while the call is still being processed; `useReportRuns` polls only while a run is in progress and invalidates `Report`, `Coach` and `Outbox` whenever the run makes progress.
+- Live updates: `App` runs `useLiveUpdates()` (`features/live`), which keeps an `EventSource` on `/api/events` and calls `api.util.invalidateTags(tags)` for each event, so pages refetch as soon as the pipeline writes. After a gap it invalidates every tag once. The connection state is in the `live` slice (not persisted).
+- Polling is the fallback: list pages poll at `useLivePollInterval()`, which is `LIVE_POLL_MS` (3 s) while the stream is down and `LIVE_SAFETY_POLL_MS` (60 s) while it is open. `useCallDetail` polls only while the call is still being processed; `useReportRuns` polls only while a run is in progress and invalidates `Report`, `Coach` and `Outbox` whenever the run makes progress.
 - Mutations (`assignCall`, `simulateCall`, `simulateWeek`) invalidate the `Call`, `Client` and `Coach` tags; `runReports` invalidates `ReportRun`; `retryJob` and `reconcileNow` invalidate `Job`, `Pipeline` and the calls list.
 - `App` polls `/api/pipeline/health` for the sidebar's dead-job badge; `useDemoInfo` polls demo info only while a demo switch is armed.

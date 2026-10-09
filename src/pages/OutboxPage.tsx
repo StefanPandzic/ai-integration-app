@@ -9,7 +9,7 @@ import {
   useListOutboxQuery,
   type OutboxService,
 } from '../features/outbox';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 const TABS: OutboxService[] = ['slack', 'drive'];
 
@@ -18,12 +18,13 @@ const TABS: OutboxService[] = ['slack', 'drive'];
  * lives in the URL (?tab=&item=&channel=) so reports and calls can link here.
  */
 export const OutboxPage = () => {
+  const pollingInterval = useLivePollInterval();
   const [params, setParams] = useSearchParams();
   const tab: OutboxService = params.get('tab') === 'drive' ? 'drive' : 'slack';
   const itemId = params.get('item');
 
-  const slack = useListOutboxQuery({ service: 'slack' }, { pollingInterval: LIVE_POLL_MS });
-  const drive = useListOutboxQuery({ service: 'drive' }, { pollingInterval: LIVE_POLL_MS });
+  const slack = useListOutboxQuery({ service: 'slack' }, { pollingInterval });
+  const drive = useListOutboxQuery({ service: 'drive' }, { pollingInterval });
 
   const slackItems = slack.data ?? [];
   const driveItems = drive.data ?? [];

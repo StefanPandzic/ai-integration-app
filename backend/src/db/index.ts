@@ -9,7 +9,7 @@
  */
 
 import fs from 'fs';
-import { Pool, PoolClient, QueryResultRow } from 'pg';
+import { Client, Pool, PoolClient, QueryResultRow } from 'pg';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('db');
@@ -32,13 +32,18 @@ const buildSslConfig = (connectionString: string) => {
 export const isDatabaseConfigured = (): boolean =>
   Boolean(process.env.DATABASE_URL);
 
-const getPool = (): Pool => {
-  if (pool) return pool;
-
+const requireConnectionString = (): string => {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL is not set');
   }
+  return connectionString;
+};
+
+const getPool = (): Pool => {
+  if (pool) return pool;
+
+  const connectionString = requireConnectionString();
 
   pool = new Pool({
     connectionString,
@@ -74,6 +79,14 @@ export const withTransaction = async <T>(
   } finally {
     client.release();
   }
+};
+
+/** A dedicated connection outside the pool (LISTEN needs one that stays open) */
+export const connectClient = async (): Promise<Client> => {
+  const connectionString = requireConnectionString();
+  const client = new Client({ connectionString, ssl: buildSslConfig(connectionString) });
+  await client.connect();
+  return client;
 };
 
 export const checkDatabase = async (): Promise<boolean> => {

@@ -10,7 +10,7 @@ import {
 } from '../features/calls';
 import { useListClientsQuery } from '../features/clients';
 import { useListCoachesQuery } from '../features/coaches';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 const isCallStatus = (value: string | null): value is CallStatus =>
   value !== null && value in STATUS_LABEL;
@@ -26,11 +26,12 @@ const readFilters = (params: URLSearchParams): CallFilters => {
 };
 
 export const CallsPage = () => {
+  const pollingInterval = useLivePollInterval();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filters = readFilters(params);
 
-  const calls = useListCallsQuery(filters, { pollingInterval: LIVE_POLL_MS });
+  const calls = useListCallsQuery(filters, { pollingInterval });
   const { data: coaches = [] } = useListCoachesQuery();
   const { data: clients = [] } = useListClientsQuery();
 

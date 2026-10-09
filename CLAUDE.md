@@ -28,18 +28,19 @@ No test framework yet; `npm run eval` is the LLM quality check. Until `GEMINI_AP
 - `backend/src/services/scheduler/` — crons (`REPORTS_CRON`, `RECONCILE_CRON`) with startup catch-up
 - `backend/src/services/reports/` — weekly reports: `runWeeklyReports.ts` (jobs `weekly_reports` → `coach_report` × N → `manager_report`, delivery), `coachReport.ts`/`managerReport.ts` (LLM writes, code counts; refs checked in `grounding.ts`). Rubric in `backend/src/schemas/coachReport.ts`
 - `backend/src/services/drive/`, `services/slack/`, `services/alerts/` — `DriveConnector`/`SlackConnector` (`*_MODE=mock` → `integration_outbox`; live Drive = `driveAuth.ts` + `driveApi.ts`), ops alerts (every dead job, review calls, partial runs, recovered recordings; keyed)
+- `backend/src/services/live/liveEvents.ts` — Postgres `LISTEN table_changes` → RTK Query tags → SSE subscribers; `publishChange()` for in-memory state
 - `backend/src/lib/logger.ts` — `createLogger(scope)`, `withLogContext({ jobId, callId, runId })`; `LOG_FORMAT=pretty|json`
-- `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`; only a client's Slack channel is editable), `slack.ts` (`/api/slack/channels`, picker; checks/joins in `services/slack/slackChannels.ts`), `reports.ts` (`/api/reports`), `outbox.ts` (`/api/outbox`), `pipeline.ts` (`/api/pipeline/*`, `/api/jobs`, retry), `demo.ts` (`/api/demo/*`)
+- `backend/src/routes/` — `webhooks.ts` (`/webhooks/grain`), `calls.ts` (`/api/calls`), `directory.ts` (`/api/clients`, `/api/coaches`; only a client's Slack channel is editable), `slack.ts` (`/api/slack/channels`, picker; checks/joins in `services/slack/slackChannels.ts`), `reports.ts` (`/api/reports`), `outbox.ts` (`/api/outbox`), `pipeline.ts` (`/api/pipeline/*`, `/api/jobs`, retry), `demo.ts` (`/api/demo/*`), `events.ts` (`/api/events`, SSE)
 - `backend/src/config/aiModels.ts` — LLM provider settings and Ollama model metadata; `config/integrations.ts` — connector modes, channels, crons, Slack rate limit
 - `src/pages/` — one component per route; `App.tsx` holds the routes and wires `AppShell`
-- `src/features/{calls,clients,coaches,reports,outbox,pipeline,slack,layout,logging}/` — `components/ hooks/ services/ types/ index.ts`
+- `src/features/{calls,clients,coaches,reports,outbox,pipeline,slack,live,layout,logging}/` — `components/ hooks/ services/ types/ index.ts`
 - `src/components/` — shared presentational primitives (`Panel`, `PageHeader`, `StatCard`, `QueryState`…)
-- `src/store/` — `api.ts` (RTK Query base), `slices/appSlice.ts` (color mode, persisted)
+- `src/store/` — `api.ts` (RTK Query base), `slices/appSlice.ts` (color mode, persisted), `slices/liveSlice.ts` (SSE connected)
 
 ## Conventions
 
 - **Backend owns AI.** The frontend never calls an LLM; it only reads the REST API.
-- **Server data → RTK Query.** Each feature injects endpoints into `store/api.ts` from `services/<feature>Api.ts` and exports the generated hooks. Use tags for invalidation and `LIVE_POLL_MS` polling for pipeline state. Never copy server data into slices or `useState`.
+- **Server data → RTK Query.** Each feature injects endpoints into `store/api.ts` from `services/<feature>Api.ts` and exports the generated hooks. Use tags for invalidation; pipeline state updates live via SSE (`/api/events` → `useLiveUpdates` invalidates tags), with `useLivePollInterval()` as the polling fallback. A new table the UI shows needs a notify trigger (see `005_live_updates.sql`) and a `TABLE_TAGS` entry in `services/live/liveEvents.ts`. Never copy server data into slices or `useState`.
 - **Pages → Hooks → Components.** Pages (and `App.tsx`) call query/mutation hooks and feature hooks (`hooks/`, for logic such as conditional polling or toasts). Components are presentational and receive everything via props.
 - **State:** Redux slices only for client UI state (`useAppSelector` with narrow selectors, `useAppDispatch`); `useState` only for transient UI. Never call `localStorage` manually for persisted state.
 - **Styling:** Chakra UI only; colors from `useAppColors()` in `src/constants/colors.ts` (`brand` scale in `src/theme.ts`). No CSS modules or inline styles.

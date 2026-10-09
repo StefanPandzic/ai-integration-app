@@ -10,6 +10,7 @@
 
 import { recordMockRecording } from '../../db/mockGrainRepo';
 import { createLogger } from '../../lib/logger';
+import { publishChange } from '../live/liveEvents';
 import { acceptGrainRecording } from '../pipeline/ingest';
 import { buildMockRecordingId } from './grainConnector';
 
@@ -19,6 +20,7 @@ let dropNextWebhook = false;
 
 export const setDropNextWebhook = (enabled: boolean): void => {
   dropNextWebhook = enabled;
+  publishChange(['Demo']);
 };
 
 export const isDropNextWebhookArmed = (): boolean => dropNextWebhook;

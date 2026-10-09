@@ -7,13 +7,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { LIVE_POLL_MS } from '../../../store/api';
+import { useLivePollInterval } from '../../live';
 import { useGetDemoInfoQuery } from '../services/callsApi';
 
 export const useDemoInfo = () => {
+  const pollingInterval = useLivePollInterval();
   const [isArmed, setIsArmed] = useState(false);
   const query = useGetDemoInfoQuery(undefined, {
-    pollingInterval: isArmed ? LIVE_POLL_MS : 0,
+    pollingInterval: isArmed ? pollingInterval : 0,
   });
 
   const { data } = query;

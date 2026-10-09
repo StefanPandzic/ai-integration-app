@@ -8,14 +8,15 @@ import {
 import { useListClientsQuery } from '../features/clients';
 import { useListCoachesQuery } from '../features/coaches';
 import { useSlackChannels } from '../features/slack';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 export const ReviewPage = () => {
+  const pollingInterval = useLivePollInterval();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const calls = useListCallsQuery(
     { status: 'needs_review' },
-    { pollingInterval: LIVE_POLL_MS },
+    { pollingInterval },
   );
   const { data: clients = [] } = useListClientsQuery();
   const { data: coaches = [] } = useListCoachesQuery();

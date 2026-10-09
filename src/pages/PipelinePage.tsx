@@ -20,7 +20,7 @@ import {
   useRetryJob,
   type PipelineTab,
 } from '../features/pipeline';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 const TABS: PipelineTab[] = ['live', 'failures'];
 const FEED_SIZE = 50;
@@ -31,15 +31,16 @@ const FAILURES_SIZE = 100;
  * in the URL (?tab=failures) so ops alerts can link straight to it.
  */
 export const PipelinePage = () => {
+  const pollingInterval = useLivePollInterval();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab: PipelineTab = params.get('tab') === 'failures' ? 'failures' : 'live';
 
-  const health = useGetPipelineHealthQuery(undefined, { pollingInterval: LIVE_POLL_MS });
-  const feed = useListJobsQuery({ limit: FEED_SIZE }, { pollingInterval: LIVE_POLL_MS });
+  const health = useGetPipelineHealthQuery(undefined, { pollingInterval });
+  const feed = useListJobsQuery({ limit: FEED_SIZE }, { pollingInterval });
   const failures = useListJobsQuery(
     { status: 'dead', limit: FAILURES_SIZE },
-    { pollingInterval: LIVE_POLL_MS },
+    { pollingInterval },
   );
   const { retryJob, retryingJobId } = useRetryJob();
   const { reconcileNow, isReconciling } = useReconcileNow();

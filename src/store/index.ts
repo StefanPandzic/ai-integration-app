@@ -12,6 +12,7 @@ import {
 import storage from 'redux-persist/lib/storage';
 import { api } from './api';
 import appReducer from './slices/appSlice';
+import liveReducer from './slices/liveSlice';
 
 /**
  * Only the `app` slice (color mode) is persisted; the RTK Query cache
@@ -31,6 +32,7 @@ LEGACY_PERSIST_KEYS.forEach((key) => {
 
 const rootReducer = combineReducers({
   app: appReducer,
+  live: liveReducer,
   [api.reducerPath]: api.reducer,
 });
 

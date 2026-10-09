@@ -7,8 +7,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { api, LIVE_POLL_MS } from '../../../store/api';
+import { api } from '../../../store/api';
 import { useAppDispatch } from '../../../store/hooks';
+import { useLivePollInterval } from '../../live';
 import { useListReportRunsQuery } from '../services/reportsApi';
 import type { ReportRuns } from '../types';
 
@@ -19,11 +20,12 @@ const progressKey = (data: ReportRuns): string =>
 
 export const useReportRuns = () => {
   const dispatch = useAppDispatch();
+  const pollingInterval = useLivePollInterval();
   const [isRunning, setIsRunning] = useState(false);
   const lastProgress = useRef<string | null>(null);
 
   const query = useListReportRunsQuery(undefined, {
-    pollingInterval: isRunning ? LIVE_POLL_MS : 0,
+    pollingInterval: isRunning ? pollingInterval : 0,
   });
 
   const { data } = query;

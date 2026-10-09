@@ -6,12 +6,14 @@
  * → ops alert → Retry → the call goes through.
  */
 
+import { publishChange } from '../live/liveEvents';
 import { NonRetryableError } from '../queue/errors';
 
 let failNextCall = false;
 
 export const setFailNextCall = (enabled: boolean): void => {
   failNextCall = enabled;
+  publishChange(['Demo']);
 };
 
 export const isFailNextCallArmed = (): boolean => failNextCall;
@@ -20,5 +22,6 @@ export const isFailNextCallArmed = (): boolean => failNextCall;
 export const maybeInjectFault = (): void => {
   if (!failNextCall) return;
   failNextCall = false;
+  publishChange(['Demo']);
   throw new NonRetryableError('Simulated failure (demo "Fail next call"); press Retry');
 };

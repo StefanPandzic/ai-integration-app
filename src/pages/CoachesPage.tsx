@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, QueryState } from '../components';
 import { CoachCards, useListCoachesQuery } from '../features/coaches';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 export const CoachesPage = () => {
+  const pollingInterval = useLivePollInterval();
   const navigate = useNavigate();
-  const coaches = useListCoachesQuery(undefined, { pollingInterval: LIVE_POLL_MS });
+  const coaches = useListCoachesQuery(undefined, { pollingInterval });
 
   return (
     <>

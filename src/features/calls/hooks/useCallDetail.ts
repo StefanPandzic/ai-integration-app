@@ -7,7 +7,7 @@
 
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useEffect, useState } from 'react';
-import { LIVE_POLL_MS } from '../../../store/api';
+import { useLivePollInterval } from '../../live';
 import { useGetCallQuery } from '../services/callsApi';
 import type { CallDetail } from '../types';
 
@@ -17,9 +17,10 @@ const isSettled = (detail: CallDetail): boolean =>
   detail.job?.status !== 'pending';
 
 export const useCallDetail = (callId: string | undefined) => {
+  const pollingInterval = useLivePollInterval();
   const [isLive, setIsLive] = useState(true);
   const query = useGetCallQuery(callId ?? skipToken, {
-    pollingInterval: isLive ? LIVE_POLL_MS : 0,
+    pollingInterval: isLive ? pollingInterval : 0,
   });
 
   const { data } = query;

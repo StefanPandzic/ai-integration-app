@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, Panel, QueryState } from '../components';
 import { ClientsTable, useListClientsQuery } from '../features/clients';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 export const ClientsPage = () => {
+  const pollingInterval = useLivePollInterval();
   const navigate = useNavigate();
-  const clients = useListClientsQuery(undefined, { pollingInterval: LIVE_POLL_MS });
+  const clients = useListClientsQuery(undefined, { pollingInterval });
 
   return (
     <>

@@ -8,12 +8,18 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
  * cache only and is never persisted.
  */
 
+/** Polling for live server state while the live-updates stream is down */
 export const LIVE_POLL_MS = 3000;
+/** Safety-net polling while the stream is open (events drive refetches) */
+export const LIVE_SAFETY_POLL_MS = 60_000;
+
+export const BACKEND_URL: string =
+  import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
+    baseUrl: BACKEND_URL,
   }),
   tagTypes: [
     'Call',

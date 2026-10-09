@@ -7,6 +7,7 @@ export type FeatureName =
   | 'reports'
   | 'outbox'
   | 'pipeline'
+  | 'live'
   | 'app'
   | 'api';
 

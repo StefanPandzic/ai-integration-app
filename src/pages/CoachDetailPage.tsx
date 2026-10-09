@@ -11,13 +11,14 @@ import { CallsTable } from '../features/calls';
 import { ClientsTable } from '../features/clients';
 import { useGetCoachQuery } from '../features/coaches';
 import { CoachReportPanel } from '../features/reports';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 export const CoachDetailPage = () => {
+  const pollingInterval = useLivePollInterval();
   const { coachId = '' } = useParams();
   const navigate = useNavigate();
   const { data, isLoading, error } = useGetCoachQuery(coachId, {
-    pollingInterval: LIVE_POLL_MS,
+    pollingInterval,
   });
   const coach = data?.coach;
 

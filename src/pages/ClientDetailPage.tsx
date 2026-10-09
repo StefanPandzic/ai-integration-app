@@ -10,14 +10,15 @@ import {
   useUpdateClientChannel,
 } from '../features/clients';
 import { useSlackChannels } from '../features/slack';
-import { LIVE_POLL_MS } from '../store/api';
+import { useLivePollInterval } from '../features/live';
 
 export const ClientDetailPage = () => {
+  const pollingInterval = useLivePollInterval();
   const { clientId = '' } = useParams();
   const navigate = useNavigate();
   const colors = useAppColors();
   const { data, isLoading, error } = useGetClientQuery(clientId, {
-    pollingInterval: LIVE_POLL_MS,
+    pollingInterval,
   });
   const client = data?.client;
   const slackChannels = useSlackChannels();

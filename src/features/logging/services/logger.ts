@@ -28,6 +28,7 @@ function formatFeaturePrefix(feature: FeatureName): string {
     reports: '[REPORTS]',
     outbox: '[OUTBOX]',
     pipeline: '[PIPELINE]',
+    live: '[LIVE]',
     api: '[API]',
   };
   return prefixes[feature];

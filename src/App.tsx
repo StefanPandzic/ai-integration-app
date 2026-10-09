@@ -10,6 +10,7 @@ import {
   type DemoSwitch,
 } from './features/calls';
 import { AppShell } from './features/layout';
+import { useLivePollInterval, useLiveUpdates } from './features/live';
 import { createLogger } from './features/logging';
 import { useGetPipelineHealthQuery } from './features/pipeline';
 import {
@@ -26,7 +27,7 @@ import {
   ReportsPage,
   ReviewPage,
 } from './pages';
-import { LIVE_POLL_MS, getErrorMessage } from './store/api';
+import { getErrorMessage } from './store/api';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { toggleColorMode } from './store/slices/appSlice';
 
@@ -43,13 +44,17 @@ function App() {
     setColorMode(colorMode);
   }, [colorMode, setColorMode]);
 
+  // Server events refetch what changed; polling is the fallback
+  useLiveUpdates();
+  const pollingInterval = useLivePollInterval();
+
   const { data: demoInfo = null } = useDemoInfo();
   const { data: reviewCalls = [] } = useListCallsQuery(
     { status: 'needs_review' },
-    { pollingInterval: LIVE_POLL_MS },
+    { pollingInterval },
   );
   const { data: pipelineHealth } = useGetPipelineHealthQuery(undefined, {
-    pollingInterval: LIVE_POLL_MS,
+    pollingInterval,
   });
   const [simulateCall, { isLoading: isSimulating }] = useSimulateCallMutation();
   const [setDemoSwitch] = useSetDemoSwitchMutation();
